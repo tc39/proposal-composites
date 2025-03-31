@@ -4,7 +4,7 @@ import { apply, includes, indexOf, lastIndexOf } from "./originals.ts";
 
 export function arrayPrototypeIncludes<T>(this: T[], value: T): boolean {
     if (isComposite(value)) {
-        return arrayPrototypeCompositeIndexOf(this, value, /* reverse: */false) !== -1;
+        return arrayPrototypeCompositeIndexOf(this, value, /* reverse: */ false) !== -1;
     }
 
     return apply(includes, this, [value]);

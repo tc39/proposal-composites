@@ -14,7 +14,7 @@ m.set("hello", "world");
 m.set({}, "object");
 
 m.get("hello"); // "world";
-m.has({});      // false
+m.has({}); // false
 ```
 
 As shown above, this means that when it comes to objects, all objects are only equal to themselves. There is no capability to override this behavior and allow two different objects to be treated equal within the collection.
@@ -86,8 +86,8 @@ The downsides of this are:
 Introduce built-in 'composite values' with well defined equality.
 
 ```js
-const pos1 = Composite({ x: 1, y: 4});
-const pos2 = Composite({ x: 1, y: 4});
+const pos1 = Composite({ x: 1, y: 4 });
+const pos2 = Composite({ x: 1, y: 4 });
 Composite.equal(pos1, pos2); // true
 
 const positions = new Set(); // the standard ES Set
@@ -165,8 +165,9 @@ Object.keys(c); // ["0", "10", "x", "y", "z"]
 Two composites are equal if their properties form the same set of key-value pairs.
 
 The values of each property are considered equal if
- - they are considered equal by `SameValueZero`
- - or if they are both composites and considered as equal composites (deeply recursive).
+
+- they are considered equal by `SameValueZero`
+- or if they are both composites and considered as equal composites (deeply recursive).
 
 As composites are immutable from birth checking their equality never leads to a cycle.
 
@@ -209,9 +210,9 @@ Composite equality would be used by:
 And future proposals such as https://github.com/tc39/proposal-iterator-unique could also use it.
 
 ```js
-someIterator.uniqueBy(obj => Composite({ name: obj.name, company: obj.company }))
+someIterator.uniqueBy((obj) => Composite({ name: obj.name, company: obj.company }));
 // or if the iterator already contains composites:
-someIterator.uniqueBy()
+someIterator.uniqueBy();
 ```
 
 While a composites's `[[proto]]` will be the `Object.prototype` from the realm that `Composite` comes from this does not impact equality. Composites from two different realms can be considered equal.
@@ -248,7 +249,7 @@ Or more advanced would be that these ordinal composites come with a prototype to
 const c = Composite.of("a", "b", "c");
 Object.getPrototypeOf(c) === Object.prototype; // false, some other prototype
 Iterator.from(c); // implements Symbol.iterator
-c.forEach(v => console.log(v));
+c.forEach((v) => console.log(v));
 ```
 
 One idea is that it would be possible to create composites that are also array exotic objects.
@@ -322,7 +323,7 @@ const customProto = {
         for (let i = this.start; i < this.end; i++) {
             yield i;
         }
-    }
+    },
 };
 const c = Composite({ start: 0, end: 10 }, customProto);
 Object.getPrototypeOf(c) === customProto; // true
@@ -333,6 +334,26 @@ Like regular composites, the prototype would be ignored when it comes to equalit
 ### Why not a new protocol?
 
 Why limit equality to only these composites values rather than let any object implement a new symbol protocol? The reason is reliability. To be able to participate as a `Map` key the equality must be pure, stable, and reliable, these guarantees would not come from a protocol that can execute arbitrary code. For example an object could have the symbol protocol added to it while it's in the map.
+
+### Syntax?
+
+There could be syntax to make creating composites more ergonomic and cleaner to read.
+
+```js
+#{ x: 1 };
+// Syntax for:
+Composite({ x: 1 });
+```
+
+Syntax may also make the creation of composites more efficient, due to the engine being able to create the composite directly instead of needing to create the object argument for `Composite(arg)`.
+
+If there were [ordinal composites](#what-about-tuples-or-ordinal-rather-than-nominal-keys) they could also have syntax:
+
+```js
+#[1];
+// Syntax for:
+Composite.of(1);
+```
 
 ### How does this compare to [proposal-richer-keys](https://github.com/tc39/proposal-richer-keys)?
 
