@@ -116,6 +116,7 @@ await test("fuzz test for hash collisions", () => {
             hashes.add(hash);
         }
     }
-    const limit = total * 0.01; // 1% collision rate (just for smoke test)
+    const limit = total * 0.002; // 0.2% collision rate limit
+    console.log(`Collisions: ${(collisions / total) * 100}%`);
     assert(collisions < limit, `Collisions exceeded limit: ${collisions} > ${limit}`);
 });

@@ -34,9 +34,6 @@ export function Composite(arg: object): Composite {
         throw new TypeError("Composite should be constructed with an object");
     }
     const argKeys = ownKeys(arg);
-    for (let i = 0; i < argKeys.length; i++) {
-        const k = argKeys[i];
-    }
     apply(sort, argKeys, [keySort]);
     const c = {};
     apply(weakSetAdd, composites, [c]);
@@ -53,6 +50,11 @@ export function Composite(arg: object): Composite {
     return c as Composite;
 }
 
+/**
+ * Strings before symbols.
+ * Strings sorted lexicographically.
+ * Symbols sorted by {@link symbolSort}
+ */
 function keySort(a: string | symbol, b: string | symbol): number {
     if (typeof a !== typeof b) {
         return typeof a === "string" ? 1 : -1;
@@ -67,7 +69,7 @@ function keySort(a: string | symbol, b: string | symbol): number {
 /**
  * Registered symbols are sorted by their string key.
  * Registered symbols come before non-registered symbols.
- * Non-registered symbols are not sorted.
+ * Non-registered symbols are not sorted (stable order preserved).
  */
 function symbolSort(a: symbol, b: symbol): number {
     const regA = keyFor(a);
@@ -87,10 +89,10 @@ export function isComposite(arg: unknown): arg is Composite {
 Composite.isComposite = isComposite;
 
 export function compositeEqual(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
     if (!isComposite(a) || !isComposite(b)) {
         return sameValueZero(a, b);
     }
-    if (a === b) return true;
 
     const maybeHashA = maybeHashComposite(a);
     if (maybeHashA !== undefined) {

@@ -35,6 +35,7 @@ export function maybeHashComposite(input: Composite): number | undefined {
     return undefined;
 }
 
+/** A basic (non-cryptographic) hashing function for Composites */
 export function hashComposite(input: Composite): number {
     let hash = maybeHashComposite(input);
     if (hash !== undefined) {
