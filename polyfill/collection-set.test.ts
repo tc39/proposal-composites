@@ -15,10 +15,13 @@ await test("Set", () => {
     assert(s.has(42));
 
     assert.deepStrictEqual([...s], [c2, 42]);
-    assert.deepStrictEqual([...s.entries()], [
-        [c2, c2],
-        [42, 42],
-    ]);
+    assert.deepStrictEqual(
+        [...s.entries()],
+        [
+            [c2, c2],
+            [42, 42],
+        ],
+    );
     assert.deepStrictEqual([...s.keys()], [c2, 42]);
     assert.deepStrictEqual([...s.values()], [c2, 42]);
     assert([...s.keys()][0] === c2, "c2 should have replaced the reference to c1");

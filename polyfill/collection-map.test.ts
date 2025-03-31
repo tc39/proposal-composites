@@ -18,14 +18,20 @@ await test("Map", () => {
     assert.strictEqual(m.get(c2), 2);
     assert.strictEqual(m.get(42), 99);
 
-    assert.deepStrictEqual([...m], [
-        [c2, 2],
-        [42, 99],
-    ]);
-    assert.deepStrictEqual([...m.entries()], [
-        [c2, 2],
-        [42, 99],
-    ]);
+    assert.deepStrictEqual(
+        [...m],
+        [
+            [c2, 2],
+            [42, 99],
+        ],
+    );
+    assert.deepStrictEqual(
+        [...m.entries()],
+        [
+            [c2, 2],
+            [42, 99],
+        ],
+    );
     assert.deepStrictEqual([...m.keys()], [c2, 42]);
     assert.deepStrictEqual([...m.values()], [2, 99]);
     assert([...m.keys()][0] === c2, "c2 should have replaced the reference to c1");

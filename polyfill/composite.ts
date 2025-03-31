@@ -19,6 +19,7 @@ import { maybeHashComposite, prepareLazyHash } from "./hash.ts";
 
 const composites = new _WeakSet(); // [[isComposite]] internal slot
 
+/** Nominal type to track Composite values */
 declare class __Composite__ {
     #__composite__: never;
 }
@@ -32,11 +33,9 @@ export function Composite(arg: object): Composite {
     if (typeof arg !== "object" || arg === null) {
         throw new TypeError("Composite should be constructed with an object");
     }
-    const copy = create(null);
     const argKeys = ownKeys(arg);
     for (let i = 0; i < argKeys.length; i++) {
         const k = argKeys[i];
-        copy[k] = arg[k as keyof typeof arg];
     }
     apply(sort, argKeys, [keySort]);
     const c = {};
@@ -46,7 +45,7 @@ export function Composite(arg: object): Composite {
             configurable: false,
             enumerable: true,
             writable: false,
-            value: copy[argKeys[i]],
+            value: (arg as any)[argKeys[i]],
         });
     }
     preventExtensions(c);

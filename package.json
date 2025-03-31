@@ -1,28 +1,28 @@
 {
-  "private": true,
-  "name": "template-for-proposals",
-  "description": "A repository template for ECMAScript proposals.",
-  "type": "module",
-  "scripts": {
-    "test": "node --test --experimental-strip-types",
-    "format": "prettier --write .",
-    "start": "npm run build-loose -- --watch",
-    "build": "npm run build-loose -- --strict",
-    "build-loose": "node -e 'fs.mkdirSync(\"build\", { recursive: true })' && ecmarkup --load-biblio @tc39/ecma262-biblio --verbose spec.emu build/index.html --lint-spec"
-  },
-  "homepage": "https://github.com/tc39/template-for-proposals#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/tc39/template-for-proposals.git"
-  },
-  "license": "MIT",
-  "devDependencies": {
-    "@tc39/ecma262-biblio": "2.1.2862",
-    "ecmarkup": "^21.2.0",
-    "@types/node": "^22.13.14",
-    "prettier": "^3.5.3"
-  },
-  "engines": {
-    "node": ">= 18"
-  }
+    "private": true,
+    "name": "template-for-proposals",
+    "description": "A repository template for ECMAScript proposals.",
+    "type": "module",
+    "scripts": {
+        "test": "node --test --experimental-strip-types",
+        "format": "prettier --write .",
+        "start": "npm run build-loose -- --watch",
+        "build": "npm run build-loose -- --strict",
+        "build-loose": "node -e 'fs.mkdirSync(\"build\", { recursive: true })' && ecmarkup --load-biblio @tc39/ecma262-biblio --verbose spec.emu build/index.html --lint-spec"
+    },
+    "homepage": "https://github.com/tc39/template-for-proposals#readme",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/tc39/template-for-proposals.git"
+    },
+    "license": "MIT",
+    "devDependencies": {
+        "@tc39/ecma262-biblio": "2.1.2862",
+        "ecmarkup": "^21.2.0",
+        "@types/node": "^22.13.14",
+        "prettier": "^3.5.3"
+    },
+    "engines": {
+        "node": ">= 18"
+    }
 }
