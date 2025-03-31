@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "target": "ES2024",
+        "module": "Preserve",
+        "moduleDetection": "force",
+        "allowImportingTsExtensions": true,
+        "noEmit": true
+    },
+    "include": ["polyfill/**/*.ts"]
+}
