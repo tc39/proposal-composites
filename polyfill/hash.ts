@@ -35,7 +35,8 @@ export function maybeHashComposite(input: Composite): number | undefined {
     return undefined;
 }
 
-/** A basic (non-cryptographic) hashing function for Composites */
+// TODO - use a better hashing function
+/** A very basic, demonstrative, non-cryptographic, hashing function for Composites */
 export function hashComposite(input: Composite): number {
     let hash = maybeHashComposite(input);
     if (hash !== undefined) {
@@ -157,5 +158,5 @@ function cachedHash(input: object | symbol): number {
 }
 
 function randomHash() {
-    return (Math.random() * Number.MAX_SAFE_INTEGER) >>> 0;
+    return (Math.random() * (2 ** 31 - 1)) >>> 0;
 }

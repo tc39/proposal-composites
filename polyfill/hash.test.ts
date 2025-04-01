@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert";
 import { Composite } from "./composite.ts";
 import { hashComposite } from "./hash.ts";
+import { Set as _Set } from "./collection-set.ts";
+const CompositeSet = _Set<Composite>;
 
 await test("unique symbol key order does not impact hash", () => {
     const s1 = Symbol();
@@ -105,10 +107,15 @@ function randomComposite(): Composite {
 
 await test("fuzz test for hash collisions", () => {
     const hashes = new Set<number>();
+    const created = new CompositeSet()
     const total = 100_000;
     let collisions = 0;
-    for (let i = 0; i < total; i++) {
+    while (created.size < total) {
         const c = randomComposite();
+        if (created.has(c)) {
+            continue;
+        }
+        created.add(c);
         const hash = hashComposite(c);
         if (hashes.has(hash)) {
             collisions++;
@@ -116,7 +123,7 @@ await test("fuzz test for hash collisions", () => {
             hashes.add(hash);
         }
     }
-    const limit = total * 0.002; // 0.2% collision rate limit
+    const limit = total * 0.0001; // 0.01% collision rate limit
     console.log(`Collisions: ${(collisions / total) * 100}%`);
     assert(collisions < limit, `Collisions exceeded limit: ${collisions} > ${limit}`);
 });

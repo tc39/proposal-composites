@@ -6,51 +6,24 @@ Right now `Map` and `Set` always use [SameValueZero](https://tc39.es/ecma262/mul
 
 ```js
 new Set([42, 42]).size; // 1
-new Set([{}, {}]).size; // 2;
-
 const m = new Map();
-
 m.set("hello", "world");
-m.set({}, "object");
-
 m.get("hello"); // "world";
-m.has({}); // false
 ```
 
-As shown above, this means that when it comes to objects, all objects are only equal to themselves. There is no capability to override this behavior and allow two different objects to be treated equal within the collection.
+This means that when it comes to objects, all objects are only equal to themselves. There is no capability to override this behavior and allow two different objects to be treated equal within the collection.
 
 ```js
-const position1 = Object.freeze({ x: 0, y: 0 });
-const position2 = Object.freeze({ x: 0, y: 0 });
+const position1 = Object.freeze({ x: 1, y: 4 });
+const position2 = Object.freeze({ x: 1, y: 4 });
 
 const positions = new Set([position1, position2]);
 positions.size; // 2
 ```
 
-Whereas in Python:
-
-```py
-position1 = (0, 0)
-position2 = (0, 0)
-
-positions = set()
-positions.add(position1)
-positions.add(position2)
-
-print(len(positions)) # 1
-```
-
-or Clojure:
-
-```clj
-(def position1 '(0 0))
-(def position2 '(0 0))
-(count (set [position1 position2])) ; 1
-```
-
 ### Current workaround
 
-One way to work around this limitation in JavaScript is to construct a string representation of the value.
+One way to work around this limitation in JavaScript is to flatten the value to a string representation.
 
 ```js
 const positions = new Set([JSON.stringify(position1), JSON.stringify(position2)]);
@@ -153,7 +126,7 @@ c.d === d; // true
 Object.is(c.zero, -0); // true
 ```
 
-The keys are sorted. IntegerIndex strings first, numerically. Then remaining strings lexicographically. [Symbols?](#symbols-keys).
+The keys are [sorted](#why-are-the-keys-sorted). IntegerIndex strings first, numerically. Then remaining strings lexicographically. [Symbols?](#symbols-keys).
 
 ```js
 const c = Composite({ z: true, x: true, y: true, 10: true, 1: true });
@@ -217,11 +190,44 @@ someIterator.uniqueBy();
 
 While a composites's `[[proto]]` will be the `Object.prototype` from the realm that `Composite` comes from this does not impact equality. Composites from two different realms can be considered equal.
 
+## Other languages
+
+Python:
+
+```py
+position1 = (1, 4)
+position2 = (1, 4)
+
+positions = set()
+positions.add(position1)
+positions.add(position2)
+
+print(len(positions)) # 1
+```
+
+Clojure:
+
+```clj
+(def position1 '(1 4))
+(def position2 '(1 4))
+(count (set [position1 position2])) ; 1
+```
+
 ## FAQ
 
 ### How to check if something is a composite?
 
 `Composite.isComposite(arg)` only returns true for composites. A proxy with a composite as its target is not considered a composite.
+
+### Can this be polyfilled?
+
+Yes ["./polyfill"](./polyfill/).
+
+Though like all JS polyfills it can only emulate internal slots with a local WeakMap. So a composite created by one instance of the polyfill would not be considered as being a composite by a separate instance of the polyfill, and would thus also not be equal.
+
+### Why are the keys sorted?
+
+Technically they don't need to be. Sorting the keys means that two equal composites are more alike each other, so switching one out for another is less likely to be observable. It also makes comparing two composites easier as two equal composites will have their key-value pairs in the same order. However sorting the keys is different from how regular objects work, and adds creation overhead. Testing may show that it's better to not sort.
 
 ### Performance expectations
 
@@ -233,6 +239,14 @@ Comparison of two composites would be linear time. Comparing two composites that
 
 Not necessarily. Composites are generic container, so can contain any values. They are only deeply immutable if everything they contain are deeply immutable.
 
+### Are keys enumerable?
+
+Yes, all keys are
+
+- enumerable: true
+- configurable: false
+- writable: false
+
 ### What about _Tuples_, or _ordinal_ rather than _nominal_ keys
 
 The simplest thing we could do here (beyond nothing) is provide a convenience API for ordinal composites.
@@ -243,7 +257,7 @@ Composite.of("a", "b", "c");
 Composite({ 0: "a", 1: "b", 2: "c", length: 3 });
 ```
 
-Or more advanced would be that these ordinal composites come with a prototype to allow list-list methods.
+Or more advanced would be that these ordinal composites come with a prototype to allow list-like methods.
 
 ```js
 const c = Composite.of("a", "b", "c");
@@ -331,7 +345,7 @@ Object.getPrototypeOf(c) === customProto; // true
 
 Like regular composites, the prototype would be ignored when it comes to equality. Having unique equality can be opt-in by using a property to reflect the 'type'.
 
-### Why not a new protocol?
+### Why not a new protocol?
 
 Why limit equality to only these composites values rather than let any object implement a new symbol protocol? The reason is reliability. To be able to participate as a `Map` key the equality must be pure, stable, and reliable, these guarantees would not come from a protocol that can execute arbitrary code. For example an object could have the symbol protocol added to it while it's in the map.
 
@@ -382,6 +396,8 @@ That proposal:
 - Records work as `Map` keys
 - Records can be compared using `===`
 - Records are primitives with custom `typeof`
+- Records have no prototype (`null`)
+- Records cannot have symbol keys
 - Records can only contain primitives (deeply immutable)
 
 This proposal:
@@ -389,4 +405,6 @@ This proposal:
 - Composites work as `Map` keys
 - Composites are compared using `Composite.equal`
 - Composites are objects
+- Composites have a prototype
+- Composites can have symbol keys
 - Composites can contain any value (shallowly immutable)
