@@ -317,7 +317,7 @@ Instead of changing the semantics of `Map` there could be a new special `Composi
 
 It also is less clear how other APIs would provide the opt-in, such as https://github.com/tc39/proposal-iterator-unique.
 
-By replacing all the existing places in the language that currently use `SameValueZero`
+By replacing all the existing places in the language that currently use `SameValueZero` to take composites into account almost avoids adding a 5th form of equality to the language. It does technically still add a 5th by updating `Array.prototype.indexOf` so that it aligns with `Array.prototype.includes` when the argument is a composite.
 
 ### Symbols keys?
 
@@ -368,6 +368,10 @@ If there were [ordinal composites](#what-about-tuples-or-ordinal-rather-than-nom
 // Syntax for:
 Composite.of(1);
 ```
+
+### Why implement natively in the language?
+
+Engines will have an advantage when it comes to implementing composites compared to user-land. Engines can access the existing hash value of objects and strings, they can access the internals of `Map` and `Set`, and they can use internal slots which work across realms.
 
 ### How does this compare to [proposal-richer-keys](https://github.com/tc39/proposal-richer-keys)?
 
