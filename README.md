@@ -95,7 +95,7 @@ The argument must be an object.
 Composite(null); // throws TypeError
 ```
 
-They are not a 'type'.
+They are not a class.
 
 ```js
 Object.getPrototypeOf(Composite({})); // Object.prototype
@@ -177,8 +177,10 @@ Composite equality would be used by:
 - `Map`
 - `Set`
 - `Array.prototype.includes`
-- `Array.prototype.indexOf`
-- `Array.prototype.lastIndexOf`
+- `Array.prototype.indexOf` \*
+- `Array.prototype.lastIndexOf` \*
+
+> \* `indexOf` and `lastIndexOf` remain strict equality (`===`) when the argument is not a composite. When the argument is a composite they use the same equality as `includes` i.e. `Composite.equal`
 
 And future proposals such as https://github.com/tc39/proposal-iterator-unique could also use it.
 
@@ -367,7 +369,7 @@ Composite.of(1);
 
 ### Why implement natively in the language?
 
-Engines will have an advantage when it comes to implementing composites compared to user-land. Engines can access the existing hash value of objects and strings, they can access the internals of `Map` and `Set`, and they can use internal slots which work across realms.
+Engines will have an advantage when it comes to implementing composites compared to user-land. Engines can access the existing hash value of objects and strings, and they can access the internals of `Map` and `Set`.
 
 ### How does this compare to [proposal-richer-keys](https://github.com/tc39/proposal-richer-keys)?
 
