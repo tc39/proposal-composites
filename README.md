@@ -190,7 +190,7 @@ someIterator.uniqueBy((obj) => Composite({ name: obj.name, company: obj.company 
 someIterator.uniqueBy();
 ```
 
-While a composites's `[[proto]]` will be the `Object.prototype` from the realm that `Composite` comes from this does not impact equality. Composites from two different realms can be considered equal.
+While a composites's [`[[Prototype]]`](https://tc39.es/ecma262/#sec-ordinarygetprototypeof) will be the `Object.prototype` from the realm that `Composite` comes from this does not impact equality. Composites from two different realms can be considered equal.
 
 ## Other languages
 
@@ -239,7 +239,7 @@ Comparison of two composites would be linear time. Comparing two composites that
 
 ### Are composites deeply immutable?
 
-Not necessarily. Composites are generic container, so can contain any values. They are only deeply immutable if everything they contain are deeply immutable.
+Not necessarily. Composites are generic containers, so can contain any values. They are only deeply immutable if everything they contain are deeply immutable.
 
 ### Are keys enumerable?
 
@@ -279,9 +279,11 @@ Object.getPrototypeOf(c); // Array.prototype
 
 This would have the advantage of being able to re-use the existing `Array.prototype` rather than creating more built-in methods. But overloading the concept of arrays (that can be mutable) with immutable composites may make the language harder to follow.
 
+See [#2](https://github.com/acutmore/proposal-composites/issues/2).
+
 ### What about WeakMaps and WeakSets?
 
-Composites are act like regular objects in a `WeakMap` or `WeakSet`.
+Composites act like regular objects in a `WeakMap` or `WeakSet`.
 
 ```js
 const objs = new WeakSet();
@@ -298,7 +300,7 @@ This is for a variety of reasons:
 - Composites are not guaranteed to contain lifetime bearing values such as regular objects or unique symbols
 - It provides a way to still create a lookup that uses the object's reference as the key
 - It's possible to create a custom `Weak{Map,Set}` that has special handling for composites in user-land.
-- A follow-on proposal could add a configurable `Weak{Map,Set}` with opt-in config for supporting composite keys
+- A follow-on proposal could propose a configurable `Weak{Map,Set}` with opt-in support composite weak-keys.
 
 ### Are composites new 'primitives'?
 
@@ -327,21 +329,7 @@ Symbols keys are supported.
 
 ### Custom prototypes?
 
-Allowing composites to have a custom prototype make composites even more useful as a general data structure, reducing the need for apps to copy their data into composites and instead use composites as the data.
-
-```js
-const customProto = {
-    *[Symbol.iterator]() {
-        for (let i = this.start; i < this.end; i++) {
-            yield i;
-        }
-    },
-};
-const c = Composite({ start: 0, end: 10 }, customProto);
-Object.getPrototypeOf(c) === customProto; // true
-```
-
-Like regular composites, the prototype would be ignored when it comes to equality. Having unique equality can be opt-in by using a property to reflect the 'type'.
+See [#4](https://github.com/acutmore/proposal-composites/issues/4).
 
 ### Why not a new protocol?
 
@@ -362,10 +350,28 @@ Syntax may also make the creation of composites more efficient, due to the engin
 If there were [ordinal composites](#what-about-tuples-or-ordinal-rather-than-nominal-keys) they could also have syntax:
 
 ```js
-#[1];
+#[1, 2, 3];
 // Syntax for:
-Composite.of(1);
+Composite.of(1, 2, 3);
 ```
+
+### Why named properties instead of an ordered key?
+
+On one hand it sounds simpler to start with a proposal where keys are lists instead of dictionaries, it could just be:
+
+```js
+const c = Composite(/* x: */ 1, /* y: */ 4);
+c[0]; // 1
+c[1]; // 4
+```
+
+This would avoid needing to pass a wrapper object as the argument and needing to decide if keys should be sorted.
+
+However this prompts a more urgent need for composites to have methods. At the very least composites would almost certainly want to have `Symbol.iterator` so they can be `...spread` into other lists, or to get access to more methods using `Iterator.from(composite)`. Or they may want many of the array methods, such as `.with` to update a particular index.
+
+With named properties there is less of a need for methods, object spread is not based on a symbol protocol.
+
+There is also the user benefit of being able to semantically name the components of the key, making the code easier to follow, avoid putting the wrong value in the wrong position.
 
 ### Why implement natively in the language?
 
