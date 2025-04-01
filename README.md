@@ -126,11 +126,11 @@ c.d === d; // true
 Object.is(c.zero, -0); // true
 ```
 
-The keys are [sorted](#why-are-the-keys-sorted). IntegerIndex strings first, numerically. Then remaining strings lexicographically. [Symbols?](#symbols-keys).
+The key order matches the argument used to construct it ([#1](https://github.com/acutmore/proposal-composites/issues/1)).
 
 ```js
 const c = Composite({ z: true, x: true, y: true, 10: true, 1: true });
-Object.keys(c); // ["0", "10", "x", "y", "z"]
+Object.keys(c); // ["1", "10", "z", "x", "y"]
 ```
 
 ### What are the equality semantics?
@@ -225,15 +225,15 @@ Yes ["./polyfill"](./polyfill/).
 
 Though like all JS polyfills it can only emulate internal slots with a local WeakMap. So a composite created by one instance of the polyfill would not be considered as being a composite by a separate instance of the polyfill, and would thus also not be equal.
 
-### Why are the keys sorted?
+### Should a composite's keys be sorted
 
-Technically they don't need to be. Sorting the keys means that two equal composites are more alike each other, so switching one out for another is less likely to be observable. It also makes comparing two composites easier as two equal composites will have their key-value pairs in the same order. However sorting the keys is different from how regular objects work, and adds creation overhead. Testing may show that it's better to not sort.
+See [#1](https://github.com/acutmore/proposal-composites/issues/1).
 
 ### Performance expectations
 
-Creation of Composites should be similar to regular objects. The values do not need to be validated, or hashed eagerly. The main creation overhead compared to regular objects is that the key order is sorted. Composites would also need one extra flag stored to mark that they are composites, and potentially an additional hash value, so there is potential that they would consume more memory than a regular object. Storing data in composites avoids the need to flatten them into strings when wanting a map key, which may offset the additional memory consumption.
+Creation of Composites should be similar to regular objects. The values do not need to be validated, or hashed eagerly. Composites would also need one extra flag stored to mark that they are composites, and potentially an additional hash value, so there is potential that they would consume more memory than a regular object. Storing data in composites avoids the need to flatten them into strings when wanting a map key, which may offset the additional memory consumption.
 
-Comparison of two composites would be linear time. Comparing two composites that contain the same components is the worst case as we only know they are equal once everything has been compared. When two composites are not equal the equality finishes earlier as soon as the first difference is found. As composite keys are sorted this helps the linear scan of two composites to bail out early on a key difference. It would be expected that composites store a hash value so that comparisons are more likely to find differences immediately and reduce collisions in Maps.
+Comparison of two composites would be linear time. Comparing two composites that contain the same components is the worst case as we only know they are equal once everything has been compared. When two composites are not equal the equality finishes earlier as soon as the first difference is found. If two composites have different keys the equality can stop without needing to recurse into the values. It would be expected that composites store a hash value so that comparisons are more likely to find differences immediately and reduce collisions in Maps.
 
 ### Are composites deeply immutable?
 
@@ -321,11 +321,7 @@ By replacing all the existing places in the language that currently use `SameVal
 
 ### Symbols keys?
 
-The current [polyfill](./polyfill/) supports `Symbol()` keys if we want them.
-
-Registered (`Symbol.for`) symbols are sorted by their key. Other symbols are not sorted, they retain the order from the object used to create the composite. The symbol ordering is ignored when it comes to equality.
-
-As unique symbols (non-registered) are not observably orderable we may want to reject them as a property key of a composite. Instead symbol protocols, e.g. `Symbol.iterator` could be provided from a [custom prototype](#custom-prototypes).
+Symbols keys are supported.
 
 ### Custom prototypes?
 

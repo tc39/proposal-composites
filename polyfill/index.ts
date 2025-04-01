@@ -4,9 +4,7 @@ import { Set } from "./collection-set.ts";
 import { arrayPrototypeMethods } from "./collection-array.ts";
 import { ownKeys } from "./originals.ts";
 
-export {
-    Composite, Map, Set, arrayPrototypeMethods
-}
+export { Composite, Map, Set, arrayPrototypeMethods };
 
 export function install(global: Record<string, any>) {
     global["Map"] = Map;

@@ -40,8 +40,10 @@ await test("key order", () => {
     const sA = Symbol.for("a");
     const sB = Symbol.for("b");
     const c = Composite({
+        b: 0,
         a: 0,
         [0]: 0,
+        [10]: 0,
         [s1]: 0,
         [sB]: 0,
         [s2]: 0,
@@ -49,7 +51,7 @@ await test("key order", () => {
         [s3]: 0,
     });
     const keys = Reflect.ownKeys(c);
-    assert.deepStrictEqual(keys, ["0", "a", sA, sB, s1, s2, s3]);
+    assert.deepStrictEqual(keys, ["0", "10", "b", "a", s1, sB, s2, sA, s3]);
 });
 await test(".equal non-composite equal", () => {
     assert(Composite.equal(-0, 0));

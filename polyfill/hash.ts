@@ -1,5 +1,16 @@
 import type { Composite } from "./composite.ts";
-import { isNaN, NaN, apply, ownKeys, keyFor, _WeakMap, weakMapGet, weakMapSet, sort } from "./originals.ts";
+import {
+    isNaN,
+    NaN,
+    apply,
+    ownKeys,
+    keyFor,
+    _WeakMap,
+    weakMapGet,
+    weakMapSet,
+    sort,
+    localeCompare,
+} from "./originals.ts";
 import { assert } from "./utils.ts";
 
 const seed = randomHash();
@@ -44,7 +55,7 @@ export function hashComposite(input: Composite): number {
     }
     hash = 0;
     const keys = apply(ownKeys, null, [input]);
-    let uniqueSymbols: symbol[] | undefined;
+    apply(sort, keys, [keySort]);
     for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
         if (typeof key === "string") {
@@ -53,42 +64,16 @@ export function hashComposite(input: Composite): number {
             continue;
         }
         assert(typeof key === "symbol");
-        const regKey = keyFor(key);
-        if (regKey !== undefined) {
-            hash ^= symbolHash(key) ^ KEY;
-            hash ^= hashValue(input[key as keyof typeof input]);
-            continue;
+        if (!symbolsInWeakMap && keyFor(key) === undefined) {
+            // Remaining keys can't be hashed
+            break;
         }
-        if (uniqueSymbols === undefined) {
-            uniqueSymbols = [];
-        }
-        uniqueSymbols.push(key);
-    }
-    if (uniqueSymbols !== undefined) {
-        apply(sort, uniqueSymbols, [secretSymbolSort]);
-        for (let i = 0; i < uniqueSymbols.length; i++) {
-            const key = uniqueSymbols[i];
-            hash ^= symbolHash(key) ^ KEY;
-            hash ^= hashValue(input[key as keyof typeof input]);
-        }
+        hash ^= symbolHash(key) ^ KEY;
+        hash ^= hashValue(input[key as keyof typeof input]);
     }
     assert(apply(weakMapGet, hashCache, [input]) === lazyCompositeHash);
     apply(weakMapSet, hashCache, [input, hash]);
     return hash;
-}
-
-const secretSymbolOrder = new WeakMap<symbol, number>();
-let nextOrder = 0;
-function getSymbolOrder(input: symbol): number {
-    let order = secretSymbolOrder.get(input);
-    if (order === undefined) {
-        order = nextOrder++;
-        secretSymbolOrder.set(input, order);
-    }
-    return order;
-}
-function secretSymbolSort(a: symbol, b: symbol): number {
-    return getSymbolOrder(a) - getSymbolOrder(b);
 }
 
 function hashValue(input: unknown): number {
@@ -159,4 +144,51 @@ function cachedHash(input: object | symbol): number {
 
 function randomHash() {
     return (Math.random() * (2 ** 31 - 1)) >>> 0;
+}
+
+/**
+ * Strings before symbols.
+ * Strings sorted lexicographically.
+ * Symbols sorted by {@link symbolSort}
+ */
+function keySort(a: string | symbol, b: string | symbol): number {
+    if (typeof a !== typeof b) {
+        return typeof a === "string" ? 1 : -1;
+    }
+    if (typeof a === "string") {
+        return apply(localeCompare, a, [b]);
+    }
+    assert(typeof b === "symbol");
+    return symbolSort(a, b);
+}
+
+/**
+ * Registered symbols are sorted by their string key.
+ * Registered symbols come before non-registered symbols.
+ * Non-registered symbols are not sorted (stable order preserved).
+ */
+function symbolSort(a: symbol, b: symbol): number {
+    const regA = keyFor(a);
+    const regB = keyFor(b);
+    if (regA !== undefined && regB !== undefined) {
+        return apply(localeCompare, regA, [regB]);
+    }
+    if (regA === undefined && regB === undefined) {
+        return symbolsInWeakMap ? secretSymbolSort(a, b) : 0;
+    }
+    return regA === undefined ? 1 : -1;
+}
+
+const secretSymbolOrder = new WeakMap<symbol, number>();
+let nextOrder = 0;
+function getSymbolOrder(input: symbol): number {
+    let order = secretSymbolOrder.get(input);
+    if (order === undefined) {
+        order = nextOrder++;
+        secretSymbolOrder.set(input, order);
+    }
+    return order;
+}
+function secretSymbolSort(a: symbol, b: symbol): number {
+    return getSymbolOrder(a) - getSymbolOrder(b);
 }

@@ -107,7 +107,7 @@ function randomComposite(): Composite {
 
 await test("fuzz test for hash collisions", () => {
     const hashes = new Set<number>();
-    const created = new CompositeSet()
+    const created = new CompositeSet();
     const total = 100_000;
     let collisions = 0;
     while (created.size < total) {
