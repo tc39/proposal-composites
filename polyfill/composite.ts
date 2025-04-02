@@ -1,4 +1,4 @@
-import { assert, sameValueZero } from "./utils.ts";
+import { assert, sameValueZero } from "./internal/utils.ts";
 import {
     ownKeys,
     apply,
@@ -10,8 +10,8 @@ import {
     setAdd,
     setHas,
     _Set,
-} from "./originals.ts";
-import { maybeHashComposite, prepareLazyHash } from "./hash.ts";
+} from "./internal/originals.ts";
+import { maybeHashComposite, prepareLazyHash } from "./internal/hash.ts";
 
 const composites = new _WeakSet(); // [[isComposite]] internal slot
 

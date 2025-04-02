@@ -1,7 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { Composite } from "./composite.ts";
-import { Map } from "./collection-map.ts";
+import { _Map } from "./internal/originals.ts";
+import { mapPrototypeMethods } from "./collection-map.ts";
+
+class Map<K, V> extends _Map<K, V> {}
+for (const [key, method] of Object.entries(mapPrototypeMethods)) {
+    (Map.prototype as any)[key] = method;
+}
 
 await test("Map", () => {
     const c1 = Composite({ a: 1 });
@@ -34,7 +40,7 @@ await test("Map", () => {
     );
     assert.deepStrictEqual([...m.keys()], [c2, 42]);
     assert.deepStrictEqual([...m.values()], [2, 99]);
-    assert([...m.keys()][0] === c2, "c2 should have replaced the reference to c1");
+    assert([...m.keys()][0] === c1, "c2 should not replace the reference to c1");
 
     assert(m.has(Composite({ a: 1 })));
     assert(!m.has(Composite({ a: 2 })));

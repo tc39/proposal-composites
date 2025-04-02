@@ -1,4 +1,4 @@
-import { _Map, mapSet, mapGet, apply, splice, mapDelete, mapClear } from "./originals.ts";
+import { _Map, mapSet, mapGet, apply, splice, mapDelete, mapClear, freeze } from "./originals.ts";
 
 const missing = Symbol("missing");
 
@@ -73,3 +73,5 @@ export class HashMap<K, V> {
         return false;
     }
 }
+freeze(HashMap.prototype);
+freeze(HashMap);

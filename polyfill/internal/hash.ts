@@ -1,4 +1,4 @@
-import type { Composite } from "./composite.ts";
+import type { Composite } from "../composite.ts";
 import {
     isNaN,
     NaN,

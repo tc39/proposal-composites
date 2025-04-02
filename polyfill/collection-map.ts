@@ -1,155 +1,78 @@
-import {
-    _Map,
-    apply,
-    mapSet,
-    mapGet,
-    mapHas,
-    mapClear,
-    mapDelete,
-    mapKeys,
-    mapValues,
-    mapEntries,
-    mapForEach,
-} from "./originals.ts";
-import { HashMap } from "./hashmap.ts";
+import { apply, mapSet, mapGet, mapHas, mapDelete, mapClear, freeze } from "./internal/originals.ts";
+import { HashMap } from "./internal/hashmap.ts";
 import { Composite, compositeEqual, isComposite } from "./composite.ts";
-import { hashComposite } from "./hash.ts";
+import { hashComposite } from "./internal/hash.ts";
 
-class CompHolder {
-    #c: Composite;
-    constructor(c: Composite) {
-        this.#c = c;
-    }
-    get c() {
-        return this.#c;
-    }
-    set c(c: Composite) {
-        this.#c = c;
-    }
-    static is(u: unknown): u is CompHolder {
-        return u !== null && typeof u === "object" && #c in u;
-    }
-    static unwrap(u: unknown): unknown {
-        if (CompHolder.is(u)) {
-            return u.#c;
-        }
-        return u;
-    }
-}
-
+type CompMap = HashMap<Composite, Composite>;
+const CompMap = HashMap<Composite, Composite>;
+const mapCompositeKeyLookups = new WeakMap<Map<any, any>, CompMap>();
 const missing = Symbol("missing");
 
-/**
- * A replacement for the standard ES Map class with support for composite keys.
- */
-export class Map<K, V> implements globalThis.Map<K, V> {
-    #map = new _Map<K | CompHolder, V>();
-    #compMap = new HashMap<Composite, CompHolder>(hashComposite, compositeEqual);
-
-    constructor(entries?: readonly (readonly [K, V])[] | null) {
-        if (entries) {
-            for (const { 0: key, 1: value } of entries) {
-                this.set(key, value);
-            }
-        }
-    }
-
-    #normalizeKey(key: unknown): unknown {
-        if (isComposite(key)) {
-            return this.#compMap.get(key) ?? missing;
-        }
+function resolveKey(map: Map<any, any>, key: unknown, create: boolean): unknown {
+    if (!isComposite(key)) {
         return key;
     }
-
-    clear(): void {
-        apply(mapClear, this.#map, []);
+    let compMap = mapCompositeKeyLookups.get(map);
+    if (!compMap) {
+        if (!create) return missing;
+        compMap = new CompMap(hashComposite, compositeEqual);
+        mapCompositeKeyLookups.set(map, compMap);
     }
 
-    delete(key: K): boolean {
-        const deleted = apply(mapDelete, this.#map, [this.#normalizeKey(key)]);
-        if (deleted && isComposite(key)) {
-            this.#compMap.delete(key);
-        }
-        return deleted;
+    let keyToUse = compMap.get(key);
+    if (!keyToUse) {
+        if (!create) return missing;
+        keyToUse = key;
+        compMap.set(key, key);
     }
+    return keyToUse;
+}
 
-    get(key: K): V | undefined {
-        return apply(mapGet, this.#map, [this.#normalizeKey(key)]);
+export function mapPrototypeSet(this: Map<any, any>, key: Composite, value: Composite): globalThis.Map<any, any> {
+    const keyToUse = resolveKey(this, key, /* create */ true);
+    apply(mapSet, this, [keyToUse, value]);
+    return this;
+}
+
+export function mapPrototypeDelete(this: Map<any, any>, key: Composite): boolean {
+    if (!isComposite(key)) {
+        return apply(mapDelete, this, [key]);
     }
-
-    has(key: any): boolean {
-        return apply(mapHas, this.#map, [this.#normalizeKey(key)]);
+    const compMap = mapCompositeKeyLookups.get(this);
+    if (!compMap) {
+        return false;
     }
-
-    set(key: K, value: V): this {
-        if (!isComposite(key)) {
-            apply(mapSet, this.#map, [key, value]);
-            return this;
-        }
-        let indexHolder = this.#compMap.get(key);
-        if (indexHolder !== undefined) {
-            indexHolder.c = key;
-        } else {
-            indexHolder = new CompHolder(key);
-            this.#compMap.set(key, indexHolder);
-        }
-        apply(mapSet, this.#map, [indexHolder, value]);
-        return this;
+    const existingKey = compMap.get(key);
+    if (!existingKey) {
+        return false;
     }
+    compMap.delete(key);
+    apply(mapDelete, this, [existingKey]);
+    return true;
+}
 
-    get size(): number {
-        return this.#map.size;
-    }
+export function mapPrototypeHas(this: Map<any, any>, key: Composite): boolean {
+    const keyToUse = resolveKey(this, key, /* create */ false);
+    return apply(mapHas, this, [keyToUse]);
+}
 
-    forEach(callbackfn: (value: V, key: K, map: this) => void, thisArg?: any): void {
-        apply(mapForEach, this.#map, [
-            (value, key) => {
-                callbackfn.call(thisArg, value, CompHolder.unwrap(key) as K, this);
-            },
-        ]);
-    }
+export function mapPrototypeGet(this: Map<any, any>, key: Composite): any {
+    const keyToUse = resolveKey(this, key, /* create */ false);
+    return apply(mapGet, this, [keyToUse]);
+}
 
-    entries(): MapIterator<[K, V]> {
-        const iterator = apply(mapEntries, this.#map, []);
-        return {
-            [Symbol.iterator]() {
-                return this;
-            },
-            next(): IteratorResult<[K, V]> {
-                const result = iterator.next();
-                if (result.done) {
-                    return { done: true, value: undefined };
-                }
-                return { done: false, value: [CompHolder.unwrap(result.value[0]) as K, result.value[1] as V] };
-            },
-        };
-    }
-
-    keys(): MapIterator<K> {
-        const iterator = apply(mapKeys, this.#map, []);
-        return {
-            [Symbol.iterator]() {
-                return this;
-            },
-            next(): IteratorResult<K> {
-                const result = iterator.next();
-                if (result.done) {
-                    return { done: true, value: undefined };
-                }
-                return { done: false, value: CompHolder.unwrap(result.value) as K };
-            },
-        };
-    }
-
-    values(): MapIterator<V> {
-        return apply(mapValues, this.#map, []);
-    }
-
-    [Symbol.iterator](): MapIterator<[K, V]> {
-        return this.entries();
-    }
-
-    get [Symbol.toStringTag]() {
-        return "Map";
+export function mapPrototypeClear(this: Map<any, any>): void {
+    apply(mapClear, this, []);
+    const compMap = mapCompositeKeyLookups.get(this);
+    if (compMap) {
+        compMap.clear();
     }
 }
+
+export const mapPrototypeMethods = freeze({
+    set: mapPrototypeSet,
+    delete: mapPrototypeDelete,
+    has: mapPrototypeHas,
+    get: mapPrototypeGet,
+    clear: mapPrototypeClear,
+});

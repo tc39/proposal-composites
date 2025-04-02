@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { Composite } from "./composite.ts";
+import { Composite } from "../composite.ts";
 import { hashComposite } from "./hash.ts";
-import { Set as _Set } from "./collection-set.ts";
+import { Set as _Set } from "../collection-set.ts";
 const CompositeSet = _Set<Composite>;
 
 await test("unique symbol key order does not impact hash", () => {

@@ -1,6 +1,6 @@
 export const { isNaN, NaN } = Number;
 export const { apply, ownKeys, defineProperty, preventExtensions } = Reflect;
-export const { is } = Object;
+export const { is, freeze } = Object;
 export const { sort, splice, includes, indexOf, lastIndexOf } = Array.prototype;
 export const { keyFor } = Symbol;
 export const { localeCompare } = String.prototype;

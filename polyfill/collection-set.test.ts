@@ -24,7 +24,7 @@ await test("Set", () => {
     );
     assert.deepStrictEqual([...s.keys()], [c2, 42]);
     assert.deepStrictEqual([...s.values()], [c2, 42]);
-    assert([...s.keys()][0] === c2, "c2 should have replaced the reference to c1");
+    assert([...s.keys()][0] === c1, "c1 should not be replaced by c2");
 
     assert(!s.delete(Composite({ b: 1 })));
     assert(s.delete(Composite({ a: 1 })));

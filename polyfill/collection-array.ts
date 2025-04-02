@@ -1,6 +1,6 @@
 import { isComposite, compositeEqual, type Composite } from "./composite.ts";
-import { hashComposite } from "./hash.ts";
-import { apply, includes, indexOf, lastIndexOf } from "./originals.ts";
+import { hashComposite } from "./internal/hash.ts";
+import { apply, includes, indexOf, lastIndexOf, freeze } from "./internal/originals.ts";
 
 export function arrayPrototypeIncludes<T>(this: T[], value: T): boolean {
     if (isComposite(value)) {
@@ -39,8 +39,8 @@ export function arrayPrototypeLastIndexOf<T>(this: T[], value: T): number {
     return apply(lastIndexOf, this, [value]);
 }
 
-export const arrayPrototypeMethods = {
+export const arrayPrototypeMethods = freeze({
     includes: arrayPrototypeIncludes,
     indexOf: arrayPrototypeIndexOf,
     lastIndexOf: arrayPrototypeLastIndexOf,
-} as const;
+});

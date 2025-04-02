@@ -1,30 +1,31 @@
-import { Map as CompositeMap } from "./collection-map.ts";
+import { _Map, apply } from "./internal/originals.ts";
+import { mapPrototypeMethods as mapMethods } from "./collection-map.ts";
 
 /**
  * A replacement for the standard ES Set class with support for composite keys.
  */
 export class Set<T> implements globalThis.Set<T> {
-    #map: Map<T, 1> = new CompositeMap();
+    #map = new _Map<T, 1>();
 
     constructor(values?: readonly T[] | null) {
         if (values) {
             for (const value of values) {
-                this.#map.set(value, 1);
+                this.add(value);
             }
         }
     }
 
     add(value: T): this {
-        this.#map.set(value, 1);
+        apply(mapMethods.set, this.#map, [value, 1]);
         return this;
     }
 
     clear(): void {
-        this.#map.clear();
+        apply(mapMethods.clear, this.#map, []);
     }
 
     delete(value: T): boolean {
-        return this.#map.delete(value);
+        return apply(mapMethods.delete, this.#map, [value]);
     }
 
     forEach(callbackfn: (value: T, value2: T, set: this) => void, thisArg?: any): void {
@@ -34,27 +35,17 @@ export class Set<T> implements globalThis.Set<T> {
     }
 
     has(value: T): boolean {
-        return this.#map.has(value);
+        return apply(mapMethods.has, this.#map, [value]);
     }
 
     get size(): number {
         return this.#map.size;
     }
 
-    entries(): SetIterator<[T, T]> {
-        const iterator = this.#map.keys();
-        return {
-            [Symbol.iterator]() {
-                return this;
-            },
-            next(): IteratorResult<[T, T]> {
-                const result = iterator.next();
-                if (result.done) {
-                    return { done: true, value: undefined };
-                }
-                return { done: false, value: [result.value, result.value] };
-            },
-        };
+    *entries(): SetIterator<[T, T]> {
+        for (const k of this.#map.keys()) {
+            yield [k, k];
+        }
     }
 
     keys(): SetIterator<T> {
@@ -66,7 +57,7 @@ export class Set<T> implements globalThis.Set<T> {
     }
 
     [Symbol.iterator](): SetIterator<T> {
-        return this.keys();
+        return this.#map.keys();
     }
 
     get [Symbol.toStringTag](): string {
