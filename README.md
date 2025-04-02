@@ -135,7 +135,7 @@ Object.keys(c); // ["1", "10", "z", "x", "y"]
 
 ### What are the equality semantics?
 
-Two composites are equal if their properties form the same set of key-value pairs.
+Two composites are equal only if they have the same prototype ([#5](https://github.com/acutmore/proposal-composites/issues/5)) and their properties form the same set of key-value pairs.
 
 The values of each property are considered equal if
 
@@ -189,8 +189,6 @@ someIterator.uniqueBy((obj) => Composite({ name: obj.name, company: obj.company 
 // or if the iterator already contains composites:
 someIterator.uniqueBy();
 ```
-
-While a composites's [`[[Prototype]]`](https://tc39.es/ecma262/#sec-ordinarygetprototypeof) will be the `Object.prototype` from the realm that `Composite` comes from this does not impact equality. Composites from two different realms can be considered equal.
 
 ## Other languages
 
