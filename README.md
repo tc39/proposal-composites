@@ -79,14 +79,14 @@ typeof Composite({}); // "object"
 Each call to `Composite(...)` returns a new object.
 
 ```js
-Composite({}) === Composite({}); // false
+Composite({}) !== Composite({}); // true
 ```
 
 It does not modify the argument.
 
 ```js
 const template = { x: 1 };
-Composite(template) === template; // false
+Composite(template) !== template; // true
 ```
 
 The argument must be an object.
@@ -156,7 +156,7 @@ const C = Composite;
 
 eq(C({}), C({})); // true
 eq(C({ a: 1 }), C({ a: 1 })); // true
-eq(C({ a: 1 }), C({ a: 1 , b: 2 })); // false
+!eq(C({ a: 1 }), C({ a: 1 , b: 2 })); // true
 
 eq(C({
     z: 0
@@ -167,7 +167,7 @@ eq(C({
     c: C({})
   })); // true
 
-eq(C({ obj: {} }), C({ obj: {} }); // false
+!eq(C({ obj: {} }), C({ obj: {} }); // true
 eq(C({ obj: globalThis }), C({ obj: globalThis }); // true
 ```
 
@@ -219,7 +219,7 @@ Clojure:
 
 `Composite.isComposite(arg)` only returns true for composites. A proxy with a composite as its target is not considered a composite.
 
-### Can this be polyfilled?
+### Can this be polyfilled?
 
 Yes ["./polyfill"](./polyfill/).
 
@@ -227,7 +227,7 @@ Though like all JS polyfills it can only emulate internal slots with a local Wea
 
 ### Should a composite's keys be sorted
 
-See [#1](https://github.com/acutmore/proposal-composites/issues/1).
+Let's discuss in [#1](https://github.com/acutmore/proposal-composites/issues/1).
 
 ### Performance expectations
 
@@ -261,7 +261,7 @@ Or more advanced would be that these ordinal composites come with a prototype to
 
 ```js
 const c = Composite.of("a", "b", "c");
-Object.getPrototypeOf(c) === Object.prototype; // false, some other prototype
+Object.getPrototypeOf(c) !== Object.prototype; // true, some other prototype
 Iterator.from(c); // implements Symbol.iterator
 c.forEach((v) => console.log(v));
 ```
@@ -277,7 +277,7 @@ Object.getPrototypeOf(c); // Array.prototype
 
 This would have the advantage of being able to re-use the existing `Array.prototype` rather than creating more built-in methods. But overloading the concept of arrays (that can be mutable) with immutable composites may make the language harder to follow.
 
-See [#2](https://github.com/acutmore/proposal-composites/issues/2).
+Let's discuss in [#2](https://github.com/acutmore/proposal-composites/issues/2).
 
 ### What about WeakMaps and WeakSets?
 
@@ -327,7 +327,7 @@ Symbols keys are supported.
 
 ### Custom prototypes?
 
-See [#4](https://github.com/acutmore/proposal-composites/issues/4).
+Let's discuss in [#4](https://github.com/acutmore/proposal-composites/issues/4).
 
 ### Why not a new protocol?
 
@@ -358,18 +358,12 @@ Composite.of(1, 2, 3);
 On one hand it sounds simpler to start with a proposal where keys are lists instead of dictionaries, it could just be:
 
 ```js
-const c = Composite(/* x: */ 1, /* y: */ 4);
+const c = Composite(1, 4);
 c[0]; // 1
 c[1]; // 4
 ```
 
-This would avoid needing to pass a wrapper object as the argument and needing to decide if keys should be sorted.
-
-However this prompts a more urgent need for composites to have methods. At the very least composites would almost certainly want to have `Symbol.iterator` so they can be `...spread` into other lists, or to get access to more methods using `Iterator.from(composite)`. Or they may want many of the array methods, such as `.with` to update a particular index.
-
-With named properties there is less of a need for methods, object spread is not based on a symbol protocol.
-
-There is also the user benefit of being able to semantically name the components of the key, making the code easier to follow, avoid putting the wrong value in the wrong position.
+We instead encourage the components of the composite to be named to make the code easier to follow and avoid bugs where the indices are mixed up. We can see that this is how JavaScript is most commonly written today - code passes around objects with named properties rather than indexed lists.
 
 ### Why implement natively in the language?
 
