@@ -5,15 +5,15 @@ import {
     defineProperty,
     preventExtensions,
     weakSetAdd,
-    _WeakSet,
+    WeakSet,
     weakSetHas,
     setAdd,
     setHas,
-    _Set,
+    Set,
 } from "./internal/originals.ts";
 import { maybeHashComposite, prepareLazyHash } from "./internal/hash.ts";
 
-const composites = new _WeakSet(); // [[isComposite]] internal slot
+const composites = new WeakSet(); // [[isComposite]] internal slot
 
 /** Nominal type to track Composite values */
 declare class __Composite__ {
@@ -79,7 +79,7 @@ export function compositeEqual(a: unknown, b: unknown): boolean {
         }
         if (typeof aKey === "symbol") {
             if (symbolKeysB === undefined) {
-                symbolKeysB = new _Set();
+                symbolKeysB = new Set();
                 firstSymbolIndex = i;
             }
             apply(setAdd, symbolKeysB, [bKey]);

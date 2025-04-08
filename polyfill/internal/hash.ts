@@ -1,16 +1,5 @@
 import type { Composite } from "../composite.ts";
-import {
-    isNaN,
-    NaN,
-    apply,
-    ownKeys,
-    keyFor,
-    _WeakMap,
-    weakMapGet,
-    weakMapSet,
-    sort,
-    localeCompare,
-} from "./originals.ts";
+import { isNaN, NaN, apply, ownKeys, keyFor, weakMapGet, weakMapSet, sort, localeCompare } from "./originals.ts";
 import { assert } from "./utils.ts";
 
 const seed = randomHash();

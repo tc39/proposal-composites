@@ -1,4 +1,4 @@
-import { apply, weakMapGet, weakMapSet } from "./originals.ts";
+import { apply, weakMapGet, weakMapSet, WeakMap } from "./originals.ts";
 import { HashMap } from "./hashmap.ts";
 import { Composite, compositeEqual, isComposite } from "../composite.ts";
 import { hashComposite } from "./hash.ts";

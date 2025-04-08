@@ -12,8 +12,10 @@ import {
     setHas,
     setSize,
     setDelete,
-    _Set,
+    Set,
     freeze,
+    setValues,
+    setNext,
 } from "./internal/originals.ts";
 import { isComposite } from "./composite.ts";
 import { resolveKey, missing, clearCompMap, deleteKey } from "./internal/key-lookup.ts";
@@ -48,21 +50,6 @@ function setPrototypeDelete<T>(this: Set<T>, value: T): boolean {
     return true;
 }
 
-function setPrototypeForEach(
-    this: Set<any>,
-    callbackfn: (value: any, value2: any, set: Set<any>) => void,
-    thisArg?: any,
-): void {
-    requireInternalSlot(this);
-    const it = this.keys();
-    let v = apply(it.next, it, []);
-    while (!v.done) {
-        const key = v.value;
-        callbackfn.call(thisArg, key, key, this);
-        v = apply(it.next, it, []);
-    }
-}
-
 function setPrototypeHas(this: Set<any>, value: any): boolean {
     requireInternalSlot(this);
     const valueToUse = resolveKey(this, value, /* create */ false);
@@ -75,8 +62,8 @@ function setPrototypeHas(this: Set<any>, value: any): boolean {
 function setPrototypeUnion(this: Set<any>, other: ReadonlySetLike<any>): Set<any> {
     requireInternalSlot(this);
     const otherSet = getSetRecord(other);
-    const result = new _Set<any>();
-    for (const value of this) {
+    const result = new Set<any>();
+    for (const value of setIterator(this)) {
         apply(setPrototypeAdd, result, [value]);
     }
     for (const value of otherSet.keys()) {
@@ -88,16 +75,16 @@ function setPrototypeUnion(this: Set<any>, other: ReadonlySetLike<any>): Set<any
 function setPrototypeIntersection<T, U>(this: Set<T>, other: ReadonlySetLike<U>): Set<T & U> {
     requireInternalSlot(this);
     const otherSet = getSetRecord(other);
-    const result = new _Set<any>();
+    const result = new Set<any>();
     if (apply(setSize, this, []) <= otherSet.size) {
-        for (const value of this) {
+        for (const value of setIterator(this)) {
             if (otherSet.has(value)) {
                 apply(setPrototypeAdd, result, [value]);
             }
         }
     } else {
         for (const value of otherSet.keys()) {
-            if (this.has(value)) {
+            if (apply(setPrototypeHas, this, [value])) {
                 apply(setPrototypeAdd, result, [value]);
             }
         }
@@ -108,8 +95,8 @@ function setPrototypeIntersection<T, U>(this: Set<T>, other: ReadonlySetLike<U>)
 function setPrototypeDifference<T, U>(this: Set<T>, other: ReadonlySetLike<U>): Set<T> {
     requireInternalSlot(this);
     const otherSet = getSetRecord(other);
-    const result = new _Set<any>();
-    for (const value of this) {
+    const result = new Set<any>();
+    for (const value of setIterator(this)) {
         apply(setPrototypeAdd, result, [value]);
     }
     if (result.size <= otherSet.size) {
@@ -129,14 +116,14 @@ function setPrototypeDifference<T, U>(this: Set<T>, other: ReadonlySetLike<U>): 
 function setPrototypeSymmetricDifference<T, U>(this: Set<T>, other: ReadonlySetLike<U>): Set<T | U> {
     requireInternalSlot(this);
     const otherSet = getSetRecord(other);
-    const result = new _Set<any>();
-    for (const value of this) {
+    const result = new Set<any>();
+    for (const value of setIterator(this)) {
         if (!otherSet.has(value)) {
             apply(setPrototypeAdd, result, [value]);
         }
     }
     for (const value of otherSet.keys()) {
-        if (!this.has(value)) {
+        if (!apply(setPrototypeHas, this, [value])) {
             apply(setPrototypeAdd, result, [value]);
         }
     }
@@ -147,7 +134,7 @@ function setPrototypeIsSubsetOf<T, U>(this: Set<T>, other: ReadonlySetLike<U>): 
     requireInternalSlot(this);
     const otherSet = getSetRecord(other);
     if (apply(setSize, this, []) > otherSet.size) return false;
-    for (const value of this) {
+    for (const value of setIterator(this)) {
         if (!otherSet.has(value)) {
             return false;
         }
@@ -160,7 +147,7 @@ function setPrototypeIsSupersetOf<T, U>(this: Set<T>, other: ReadonlySetLike<U>)
     const otherSet = getSetRecord(other);
     if (apply(setSize, this, []) < otherSet.size) return false;
     for (const value of otherSet.keys()) {
-        if (!this.has(value)) {
+        if (!apply(setPrototypeHas, this, [value])) {
             return false;
         }
     }
@@ -172,14 +159,14 @@ function setPrototypeIsDisjointFrom<T, U>(this: Set<T>, other: ReadonlySetLike<U
     const otherSet = getSetRecord(other);
 
     if (apply(setSize, this, []) <= otherSet.size) {
-        for (const value of this) {
+        for (const value of setIterator(this)) {
             if (otherSet.has(value)) {
                 return false;
             }
         }
     } else {
         for (const value of otherSet.keys()) {
-            if (this.has(value)) {
+            if (apply(setPrototypeHas, this, [value])) {
                 return false;
             }
         }
@@ -188,11 +175,41 @@ function setPrototypeIsDisjointFrom<T, U>(this: Set<T>, other: ReadonlySetLike<U
     return true;
 }
 
+const setIteratorProto = {
+    __proto__: null,
+    nextFn: undefined as any,
+    it: undefined as unknown as Iterator<any>,
+    [iterator]() {
+        return this;
+    },
+    next() {
+        return apply(this.nextFn, this.it, []);
+    },
+    return(value: any) {
+        const ret = this.it.return;
+        if (ret) {
+            return apply(ret, this.it, [value]);
+        }
+        return {
+            value: undefined,
+            done: true,
+        };
+    },
+};
+
+function setIterator<T>(set: Set<T>): Iterable<T> {
+    const it = apply(setValues, set, []);
+    return {
+        __proto__: setIteratorProto,
+        nextFn: setNext,
+        it,
+    } as {} as Iterable<T>;
+}
+
 export const setPrototypeMethods = freeze({
     add: setPrototypeAdd,
     clear: setPrototypeClear,
     delete: setPrototypeDelete,
-    forEach: setPrototypeForEach,
     has: setPrototypeHas,
     union: setPrototypeUnion,
     intersection: setPrototypeIntersection,
@@ -232,16 +249,12 @@ function getSetRecord(other: ReadonlySetLike<unknown>) {
                 throw new TypeError("invalid keys");
             }
             const next = it.next;
+
             return {
-                [iterator as typeof Symbol.iterator]() {
-                    return {
-                        __proto__: null,
-                        next() {
-                            return apply(next, it, []);
-                        },
-                    };
-                },
-            };
+                __proto__: setIteratorProto,
+                nextFn: next,
+                it,
+            } as {} as Iterable<any>;
         },
     };
 }

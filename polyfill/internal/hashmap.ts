@@ -1,11 +1,11 @@
-import { _Map, mapSet, mapGet, apply, splice, mapDelete, mapClear, freeze } from "./originals.ts";
+import { Map, mapSet, mapGet, apply, splice, mapDelete, mapClear, freeze } from "./originals.ts";
 
 const missing = Symbol("missing");
 
 export class HashMap<K, V> {
     #hasher: (key: K) => number;
     #equals: (a: K, b: K) => boolean;
-    #map = new _Map<number, Array<[K, V]>>();
+    #map = new Map<number, Array<[K, V]>>();
     constructor(hasher: (key: K) => number, equals: (a: K, b: K) => boolean) {
         this.#hasher = hasher;
         this.#equals = equals;

@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { Composite } from "./composite.ts";
-import { _Map } from "./internal/originals.ts";
+import { Map as OGMap } from "./internal/originals.ts";
 import { mapPrototypeMethods } from "./collection-map.ts";
 
-class Map<K, V> extends _Map<K, V> {}
+class Map<K, V> extends OGMap<K, V> {}
 for (const [key, method] of Object.entries(mapPrototypeMethods)) {
     (Map.prototype as any)[key] = method;
 }

@@ -2,10 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert";
 import { Composite } from "../composite.ts";
 import { hashComposite } from "./hash.ts";
-import { _Set } from "./originals.ts";
+import { Set } from "./originals.ts";
 import { setPrototypeMethods } from "../collection-set.ts";
 
-class CompositeSet<T> extends _Set<T> {}
+class CompositeSet<T> extends Set<T> {}
 for (const [key, method] of Object.entries(setPrototypeMethods)) {
     (CompositeSet.prototype as any)[key] = method;
 }
@@ -111,7 +111,7 @@ function randomComposite(): Composite {
 }
 
 await test("fuzz test for hash collisions", () => {
-    const hashes = new _Set<number>();
+    const hashes = new Set<number>();
     const created = new CompositeSet();
     const total = 100_000;
     let collisions = 0;
