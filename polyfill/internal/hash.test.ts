@@ -2,8 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert";
 import { Composite } from "../composite.ts";
 import { hashComposite } from "./hash.ts";
-import { Set as _Set } from "../collection-set.ts";
-const CompositeSet = _Set<Composite>;
+import { _Set } from "./originals.ts";
+import { setPrototypeMethods } from "../collection-set.ts";
+
+class CompositeSet<T> extends _Set<T> {}
+for (const [key, method] of Object.entries(setPrototypeMethods)) {
+    (CompositeSet.prototype as any)[key] = method;
+}
 
 await test("unique symbol key order does not impact hash", () => {
     const s1 = Symbol();
@@ -106,7 +111,7 @@ function randomComposite(): Composite {
 }
 
 await test("fuzz test for hash collisions", () => {
-    const hashes = new Set<number>();
+    const hashes = new _Set<number>();
     const created = new CompositeSet();
     const total = 100_000;
     let collisions = 0;

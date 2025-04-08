@@ -1,7 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { Composite } from "./composite.ts";
-import { Set } from "./collection-set.ts";
+import { _Set } from "./internal/originals.ts";
+import { setPrototypeMethods } from "./collection-set.ts";
+
+class Set<T> extends _Set<T> {}
+for (const [key, method] of Object.entries(setPrototypeMethods)) {
+    (Set.prototype as any)[key] = method;
+}
 
 await test("Set", () => {
     const c1 = Composite({ a: 1 });

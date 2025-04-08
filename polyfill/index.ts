@@ -1,6 +1,6 @@
 import { Composite } from "./composite.ts";
 import { mapPrototypeMethods } from "./collection-map.ts";
-import { Set } from "./collection-set.ts";
+import { setPrototypeMethods } from "./collection-set.ts";
 import { arrayPrototypeMethods } from "./collection-array.ts";
 import { ownKeys } from "./internal/originals.ts";
 
@@ -21,5 +21,11 @@ export function install(global: Record<string, any>) {
         const impl = mapPrototypeMethods[method];
         global["Map"].prototype[method] = impl;
     }
-    global["Set"] = Set;
+
+    const setMethods = ownKeys(setPrototypeMethods);
+    for (let i = 0; i < setMethods.length; i++) {
+        const method = setMethods[i] as keyof typeof setPrototypeMethods;
+        const impl = setPrototypeMethods[method];
+        global["Set"].prototype[method] = impl;
+    }
 }
