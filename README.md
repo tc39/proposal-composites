@@ -129,8 +129,8 @@ Object.is(c.zero, -0); // true
 The key order matches the argument used to construct it ([#1](https://github.com/acutmore/proposal-composites/issues/1)).
 
 ```js
-const c = Composite({ z: true, x: true, y: true, 10: true, 1: true });
-Object.keys(c); // ["1", "10", "z", "x", "y"]
+const c = Composite({ z: true, x: true, y: true });
+Object.keys(c); // ["z", "x", "y"]
 ```
 
 ### What are the equality semantics?
