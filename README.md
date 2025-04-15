@@ -158,17 +158,19 @@ eq(C({}), C({})); // true
 eq(C({ a: 1 }), C({ a: 1 })); // true
 !eq(C({ a: 1 }), C({ a: 1 , b: 2 })); // true
 
-eq(C({
+eq(
+  C({
     z: 0
     c: C({})
   }),
   C({
     z: -0,
     c: C({})
-  })); // true
+  })
+); // true
 
-!eq(C({ obj: {} }), C({ obj: {} }); // true
-eq(C({ obj: globalThis }), C({ obj: globalThis }); // true
+eq(C({ obj: {} }), C({ obj: {} })); // true
+eq(C({ obj: globalThis }), C({ obj: globalThis })); // true
 ```
 
 Composite equality would be used by:
