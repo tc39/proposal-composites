@@ -1,5 +1,11 @@
 # proposal Composites
 
+## Status
+
+Stage: 1
+
+Champion(s): [Ashley Claymore](https://github.com/acutmore)
+
 ## The _issue_
 
 Right now `Map` and `Set` always use [SameValueZero](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-samevaluezero) for their internal equality predicate answering "Is this value in this collection?".
@@ -167,8 +173,8 @@ eq(C({
     c: C({})
   })); // true
 
-!eq(C({ obj: {} }), C({ obj: {} }); // true
-eq(C({ obj: globalThis }), C({ obj: globalThis }); // true
+!eq(C({ obj: {} }), C({ obj: {} })); // true
+eq(C({ obj: globalThis }), C({ obj: globalThis })); // true
 ```
 
 Composite equality would be used by:
