@@ -1,5 +1,7 @@
 # proposal Composites
 
+Keys for Maps and Sets that represent a structured group of values.
+
 ## Status
 
 Stage: 1
