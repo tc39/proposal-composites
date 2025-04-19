@@ -4,7 +4,7 @@ Keys for Maps and Sets that represent a structured group of values.
 
 ## Status
 
-Stage: 1
+Stage: [1](https://tc39.es/process-document/)
 
 Champion(s): [Ashley Claymore](https://github.com/acutmore)
 
@@ -65,6 +65,9 @@ The downsides of this are:
 ## The proposal
 
 Introduce built-in 'composite values' with well defined equality.
+
+> [!IMPORTANT]
+> Expect changes. The design below is a starting point to evolve from as discussion continues.
 
 ```js
 const pos1 = Composite({ x: 1, y: 4 });
@@ -314,12 +317,7 @@ No. A composite is an object. It's `typeof` is `"object"`.
 
 ### Can composites be compared with `===` or `Object.is`?
 
-There is no special behavior for composites with regards to `===` and `Object.is`.
-Like all objects they are only equal if they are compared to themselves.
-
-While this means that composite equality is not universally triggered across the entire language it makes them significantly easier to implement in existing engines.
-
-There is also performance expectations that `===` is fast, close to `O(1)` when composites have linear equality `O(n)`.
+Discussion continues in [issue 15](https://github.com/tc39/proposal-composites/issues/15).
 
 ### Why modify existing `Map` and `Set` semantics
 
@@ -339,11 +337,11 @@ Let's discuss in [#4](https://github.com/acutmore/proposal-composites/issues/4).
 
 ### Why not a new protocol?
 
-Why limit equality to only these composites values rather than let any object implement a new symbol protocol? The reason is reliability. To be able to participate as a `Map` key the equality must be pure, stable, and reliable, these guarantees would not come from a protocol that can execute arbitrary code. For example an object could have the symbol protocol added to it while it's in the map.
+Why limit equality to only these composites values rather than let any object implement a new symbol protocol? The reason is reliability. To be able to participate as a `Map` key the equality must be pure, stable, and reliable, these guarantees would not come from a protocol that can execute arbitrary code. For example: an object having the symbol protocol added to it while it's in the map.
 
 ### Syntax?
 
-There could be syntax to make creating composites more ergonomic and cleaner to read.
+There could be syntax to make creating composites more ergonomic and cleaner to read. This would most likely be a separate, follow-on, proposal - after the Composites API has had time on its own in the ecosystem.
 
 ```js
 #{ x: 1 };
@@ -371,11 +369,13 @@ c[0]; // 1
 c[1]; // 4
 ```
 
-We instead encourage the components of the composite to be named to make the code easier to follow and avoid bugs where the indices are mixed up. We can see that this is how JavaScript is most commonly written today - code passes around objects with named properties rather than indexed lists.
+We instead encourage the constituents of the composite to be named to make the code easier to follow and avoid bugs where the indices are mixed up. We can see that this is how JavaScript is most commonly written today - code passes around objects with named properties rather than indexed lists.
 
 ### Why implement natively in the language?
 
-Engines will have an advantage when it comes to implementing composites compared to user-land. Engines can access the existing hash value of objects and strings, and they can access the internals of `Map` and `Set`.
+Being able to create multi-value `Map` and `Set` keys is a common need across many application domains.
+
+Additionally, engines will have an advantage when it comes to implementing composites compared to user-land. Engines can access the existing hash value of objects and strings, and they can access the internals of `Map` and `Set`.
 
 ### How does this compare to [proposal-richer-keys](https://github.com/tc39/proposal-richer-keys)?
 
