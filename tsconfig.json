@@ -5,6 +5,7 @@
         "module": "Preserve",
         "moduleDetection": "force",
         "allowImportingTsExtensions": true,
+        "verbatimModuleSyntax": true,
         "noEmit": true
     },
     "include": ["polyfill/**/*.ts"]

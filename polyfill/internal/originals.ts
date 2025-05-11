@@ -1,10 +1,11 @@
+export const Number = globalThis.Number;
 export const { isNaN, NaN, POSITIVE_INFINITY, NEGATIVE_INFINITY } = Number;
-export const { abs, floor, min } = Math;
+export const { abs, floor, min, imul } = Math;
 export const { apply, ownKeys, defineProperty, preventExtensions, getOwnPropertyDescriptor } = Reflect;
 export const { is, freeze } = Object;
 export const { sort, splice, includes, indexOf, lastIndexOf } = Array.prototype;
 export const { keyFor, iterator } = Symbol;
-export const { localeCompare } = String.prototype;
+export const { localeCompare, charCodeAt } = String.prototype;
 export const Map = globalThis.Map;
 export const { has: mapHas, set: mapSet, get: mapGet, delete: mapDelete, clear: mapClear } = Map.prototype;
 export const mapSize = getOwnPropertyDescriptor(Map.prototype, "size")!.get!;

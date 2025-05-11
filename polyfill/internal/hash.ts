@@ -1,14 +1,15 @@
 import type { Composite } from "../composite.ts";
 import { isNaN, NaN, apply, ownKeys, keyFor, weakMapGet, weakMapSet, sort, localeCompare } from "./originals.ts";
 import { assert } from "./utils.ts";
+import { randomHash, MurmurHashStream, type Hasher } from "./murmur.ts";
 
-const seed = randomHash();
 const TRUE = randomHash();
 const FALSE = randomHash();
 const NULL = randomHash();
 const UNDEFINED = randomHash();
 const SYMBOLS = randomHash();
 const KEY = randomHash();
+const OBJECTS = randomHash();
 
 const hashCache = new WeakMap<symbol | object, number | typeof lazyCompositeHash>();
 const symbolsInWeakMap = (() => {
@@ -35,93 +36,90 @@ export function maybeHashComposite(input: Composite): number | undefined {
     return undefined;
 }
 
-// TODO - use a better hashing function
-/** A very basic, demonstrative, non-cryptographic, hashing function for Composites */
 export function hashComposite(input: Composite): number {
-    let hash = maybeHashComposite(input);
-    if (hash !== undefined) {
-        return hash;
+    const cachedHash = maybeHashComposite(input);
+    if (cachedHash !== undefined) {
+        return cachedHash;
     }
-    hash = 0;
+    const hasher = new MurmurHashStream();
     const keys = apply(ownKeys, null, [input]);
     apply(sort, keys, [keySort]);
     for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
         if (typeof key === "string") {
-            hash ^= stringHash(key) ^ KEY;
-            hash ^= hashValue(input[key as keyof typeof input]);
+            hasher.update(KEY);
+            hasher.update(key);
+            updateHasher(hasher, input[key as keyof typeof input]);
             continue;
         }
         assert(typeof key === "symbol");
         if (!symbolsInWeakMap && keyFor(key) === undefined) {
-            // Remaining keys can't be hashed
+            // Remaining keys can't be hashed in this JS engine
             break;
         }
-        hash ^= symbolHash(key) ^ KEY;
-        hash ^= hashValue(input[key as keyof typeof input]);
+        hasher.update(KEY);
+        symbolUpdateHasher(hasher, key);
+        updateHasher(hasher, input[key as keyof typeof input]);
     }
     assert(apply(weakMapGet, hashCache, [input]) === lazyCompositeHash);
+    const hash = hasher.digest();
     apply(weakMapSet, hashCache, [input, hash]);
     return hash;
 }
 
-function hashValue(input: unknown): number {
+function updateHasher(hasher: Hasher, input: unknown): void {
     if (input === null) {
-        return NULL;
+        hasher.update(NULL);
+        return;
     }
     switch (typeof input) {
         case "undefined":
-            return UNDEFINED;
+            hasher.update(UNDEFINED);
+            return;
         case "boolean":
-            return input ? TRUE : FALSE;
+            hasher.update(input ? TRUE : FALSE);
+            return;
         case "number":
-            return numberHash(input);
+            // Normalize NaNs and -0
+            hasher.update(isNaN(input) ? NaN : input === 0 ? 0 : input);
+            return;
         case "bigint":
-            return numberHash(Number(input));
         case "string":
-            return stringHash(input);
+            hasher.update(input);
+            return;
         case "symbol":
-            return symbolHash(input);
+            symbolUpdateHasher(hasher, input);
+            return;
         case "object":
-            return cachedHash(input);
         case "function":
-            return cachedHash(input);
+            hasher.update(cachedHash(input));
+            return;
         default:
             throw new TypeError(`Unsupported input type: ${typeof input}`);
     }
 }
 
-const floatArray = new Float64Array(1);
-const intArray = new Uint32Array(floatArray.buffer);
-function numberHash(input: number): number {
-    floatArray[0] = input === 0 ? 0 : isNaN(input) ? NaN : input;
-    const hash = intArray[0] ^ intArray[1];
-    return hash >>> 0;
-}
-
-function stringHash(input: string): number {
-    let hash = seed;
-    for (let i = 0; i < input.length; i++) {
-        hash = (hash * 33) ^ input.charCodeAt(i);
-    }
-    return hash >>> 0;
-}
-
-function symbolHash(input: symbol): number {
+function symbolUpdateHasher(hasher: Hasher, input: symbol): void {
     const regA = Symbol.keyFor(input);
     if (regA !== undefined) {
-        return stringHash(regA) ^ SYMBOLS;
+        hasher.update(SYMBOLS);
+        hasher.update(regA);
+        return;
     }
     if (!symbolsInWeakMap) {
-        return SYMBOLS;
+        hasher.update(SYMBOLS);
+        return;
+    } else {
+        hasher.update(cachedHash(input));
     }
-    return cachedHash(input);
 }
 
+let nextObjectId = 1;
 function cachedHash(input: object | symbol): number {
     let hash = apply(weakMapGet, hashCache, [input]);
     if (hash === undefined) {
-        hash = randomHash();
+        hash = nextObjectId ^ OBJECTS;
+        nextObjectId++;
         apply(weakMapSet, hashCache, [input, hash]);
         return hash;
     }
@@ -129,10 +127,6 @@ function cachedHash(input: object | symbol): number {
         return hashComposite(input as Composite);
     }
     return hash;
-}
-
-function randomHash() {
-    return (Math.random() * (2 ** 31 - 1)) >>> 0;
 }
 
 /**
