@@ -42,7 +42,7 @@ export function hashComposite(input: Composite): number {
         return cachedHash;
     }
     const hasher = new MurmurHashStream();
-    const keys = apply(ownKeys, null, [input]);
+    const keys = ownKeys(input);
     apply(sort, keys, [keySort]);
     for (let i = 0; i < keys.length; i++) {
         const key = keys[i];

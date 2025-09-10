@@ -19,9 +19,10 @@ import {
 } from "./internal/originals.ts";
 import { isComposite } from "./composite.ts";
 import { resolveKey, missing, clearCompMap, deleteKey } from "./internal/key-lookup.ts";
+import { EMPTY } from "./internal/utils.ts";
 
 function requireInternalSlot(that: unknown): void {
-    apply(setSize, that, []);
+    apply(setSize, that, EMPTY);
 }
 
 function setPrototypeAdd<T>(this: Set<T>, value: T): Set<T> {
@@ -33,7 +34,7 @@ function setPrototypeAdd<T>(this: Set<T>, value: T): Set<T> {
 
 function setPrototypeClear(this: Set<any>): void {
     requireInternalSlot(this);
-    apply(setClear, this, []);
+    apply(setClear, this, EMPTY);
     clearCompMap(this);
 }
 
@@ -76,7 +77,7 @@ function setPrototypeIntersection<T, U>(this: Set<T>, other: ReadonlySetLike<U>)
     requireInternalSlot(this);
     const otherSet = getSetRecord(other);
     const result = new Set<any>();
-    if (apply(setSize, this, []) <= otherSet.size) {
+    if (apply(setSize, this, EMPTY) <= otherSet.size) {
         for (const value of setIterator(this)) {
             if (otherSet.has(value)) {
                 apply(setPrototypeAdd, result, [value]);
@@ -133,7 +134,7 @@ function setPrototypeSymmetricDifference<T, U>(this: Set<T>, other: ReadonlySetL
 function setPrototypeIsSubsetOf<T, U>(this: Set<T>, other: ReadonlySetLike<U>): boolean {
     requireInternalSlot(this);
     const otherSet = getSetRecord(other);
-    if (apply(setSize, this, []) > otherSet.size) return false;
+    if (apply(setSize, this, EMPTY) > otherSet.size) return false;
     for (const value of setIterator(this)) {
         if (!otherSet.has(value)) {
             return false;
@@ -145,7 +146,7 @@ function setPrototypeIsSubsetOf<T, U>(this: Set<T>, other: ReadonlySetLike<U>): 
 function setPrototypeIsSupersetOf<T, U>(this: Set<T>, other: ReadonlySetLike<U>): boolean {
     requireInternalSlot(this);
     const otherSet = getSetRecord(other);
-    if (apply(setSize, this, []) < otherSet.size) return false;
+    if (apply(setSize, this, EMPTY) < otherSet.size) return false;
     for (const value of otherSet.keys()) {
         if (!apply(setPrototypeHas, this, [value])) {
             return false;
@@ -158,7 +159,7 @@ function setPrototypeIsDisjointFrom<T, U>(this: Set<T>, other: ReadonlySetLike<U
     requireInternalSlot(this);
     const otherSet = getSetRecord(other);
 
-    if (apply(setSize, this, []) <= otherSet.size) {
+    if (apply(setSize, this, EMPTY) <= otherSet.size) {
         for (const value of setIterator(this)) {
             if (otherSet.has(value)) {
                 return false;
@@ -183,7 +184,7 @@ const setIteratorProto = {
         return this;
     },
     next() {
-        return apply(this.nextFn, this.it, []);
+        return apply(this.nextFn, this.it, EMPTY);
     },
     return(value: any) {
         const ret = this.it.return;
@@ -198,7 +199,7 @@ const setIteratorProto = {
 };
 
 function setIterator<T>(set: Set<T>): Iterable<T> {
-    const it = apply(setValues, set, []);
+    const it = apply(setValues, set, EMPTY);
     return {
         __proto__: setIteratorProto,
         nextFn: setNext,
@@ -244,7 +245,7 @@ function getSetRecord(other: ReadonlySetLike<unknown>) {
             return Boolean(apply(has, other, [v]));
         },
         keys(): Iterable<any> {
-            const it = apply(keys, other, []);
+            const it = apply(keys, other, EMPTY);
             if (it === null || typeof it !== "object") {
                 throw new TypeError("invalid keys");
             }

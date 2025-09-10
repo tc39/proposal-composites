@@ -1,9 +1,10 @@
 import { apply, mapSet, mapGet, mapHas, mapDelete, mapClear, freeze, mapSize } from "./internal/originals.ts";
 import { isComposite } from "./composite.ts";
 import { resolveKey, missing, clearCompMap, deleteKey } from "./internal/key-lookup.ts";
+import { EMPTY } from "./internal/utils.ts";
 
 function requireInternalSlot(that: unknown): void {
-    apply(mapSize, that, []);
+    apply(mapSize, that, EMPTY);
 }
 
 export function mapPrototypeSet<K, V>(this: Map<K, V>, key: K, value: V): globalThis.Map<K, V> {
@@ -41,7 +42,7 @@ export function mapPrototypeGet<K, V>(this: Map<K, V>, key: K): any {
 }
 
 export function mapPrototypeClear(this: Map<any, any>): void {
-    apply(mapClear, this, []);
+    apply(mapClear, this, EMPTY);
     clearCompMap(this);
 }
 

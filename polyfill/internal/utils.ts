@@ -1,4 +1,4 @@
-import { is } from "./originals.ts";
+import { is, freeze } from "./originals.ts";
 
 export function assert(v: unknown): asserts v {
     if (!v) {
@@ -13,3 +13,5 @@ export function assert(v: unknown): asserts v {
 export function sameValueZero(a: unknown, b: unknown): boolean {
     return is(a === 0 ? 0 : a, b === 0 ? 0 : b);
 }
+
+export const EMPTY = freeze([]);

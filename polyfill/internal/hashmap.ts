@@ -1,4 +1,5 @@
 import { Map, mapSet, mapGet, apply, splice, mapDelete, mapClear, freeze } from "./originals.ts";
+import { EMPTY } from "./utils.ts";
 
 const missing = Symbol("missing");
 
@@ -11,7 +12,7 @@ export class HashMap<K, V> {
         this.#equals = equals;
     }
     clear(): void {
-        apply(mapClear, this.#map, []);
+        apply(mapClear, this.#map, EMPTY);
     }
     #get(key: K): V | typeof missing {
         const hash = this.#hasher(key);
