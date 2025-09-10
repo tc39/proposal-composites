@@ -124,3 +124,21 @@ await test(".equal deep", () => {
         "Deeply nested composites c5 and c7 should not be equal due to differing additional properties",
     );
 });
+await test(".equal composites decimal numbers", () => {
+    const c1 = Composite({ a: 2.0 });
+    const c2 = Composite({ a: 2.5 });
+    assert(c1 !== c2, "c1 and c2 should not be the same object");
+    assert(!Composite.equal(c1, c2), "c1 and c2 should not be equal");
+    const c3 = Composite({ a: 2.5 });
+    assert(c2 !== c3, "c2 and c3 should not be the same object");
+    assert(Composite.equal(c2, c3), "c2 and c3 should be equal");
+});
+await test(".equal composites interesting decimal numbers", () => {
+    const c1 = Composite({ a: 1 + Number.EPSILON });
+    const c2 = Composite({ a: 1 + 2 * Number.EPSILON });
+    assert(c1 !== c2, "c1 and c2 should not be the same object");
+    assert(!Composite.equal(c1, c2), "c1 and c2 should not be equal");
+    const c3 = Composite({ a: 1 + 2 * Number.EPSILON });
+    assert(c2 !== c3, "c2 and c3 should not be the same object");
+    assert(Composite.equal(c2, c3), "c2 and c3 should be equal");
+});
