@@ -1,7 +1,7 @@
 {
     "private": true,
-    "name": "template-for-proposals",
-    "description": "A repository template for ECMAScript proposals.",
+    "name": "proposal-composites",
+    "description": "ECMAScript proposal for immutable values with structural equality",
     "type": "module",
     "scripts": {
         "test": "node --test --experimental-strip-types",
@@ -9,11 +9,6 @@
         "start": "npm run build-loose -- --watch",
         "build": "npm run build-loose -- --strict",
         "build-loose": "node -e 'fs.mkdirSync(\"build\", { recursive: true })' && ecmarkup --load-biblio @tc39/ecma262-biblio --verbose spec.emu build/index.html --lint-spec"
-    },
-    "homepage": "https://github.com/tc39/template-for-proposals#readme",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/tc39/template-for-proposals.git"
     },
     "license": "MIT",
     "devDependencies": {
