@@ -1,5 +1,7 @@
 {
     "private": true,
+    "name": "proposal-composites",
+    "description": "ECMAScript proposal for immutable values with structural equality",
     "type": "module",
     "scripts": {
         "test": "node --test --experimental-strip-types",
