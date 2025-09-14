@@ -1,36 +1,34 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { Composite } from "../composite.ts";
-import { hashComposite } from "./hash.ts";
-import { Set } from "./originals.ts";
-import { setPrototypeMethods } from "../collection-set.ts";
-
-class CompositeSet<T> extends Set<T> {}
-for (const [key, method] of Object.entries(setPrototypeMethods)) {
-    (CompositeSet.prototype as any)[key] = method;
-}
-
-await test("unique symbol key order does not impact hash", () => {
-    const s1 = Symbol();
-    const s2 = Symbol();
-    const c1 = Composite({ [s1]: 1, [s2]: 2 });
-    const c2 = Composite({ [s2]: 2, [s1]: 1 });
-    assert(Composite.equal(c1, c2));
-    assert.strictEqual(hashComposite(c1), hashComposite(c2));
-});
+import { getCompositeHash } from "./composite-class.ts";
 
 await test("hash is same value zero", () => {
     const c1 = Composite({ x: 0 });
     const c2 = Composite({ x: -0 });
-    assert(Composite.equal(c1, c2));
-    assert.strictEqual(hashComposite(c1), hashComposite(c2));
+    assert(c1 === c2);
+});
+
+await test("numbers hash by full precision, not int32 truncation", () => {
+    const h = (x: number) => getCompositeHash(Composite({ a: x }));
+    // Values sharing an int32 truncation must not share a hash.
+    assert.notStrictEqual(h(0.1), h(0.2));
+    assert.notStrictEqual(h(2.1), h(2.9));
+    assert.notStrictEqual(h(2 ** 32 + 5), h(5));
+    // Fast path (int32) vs full-precision path must not blur together.
+    assert.notStrictEqual(h(5), h(5.5));
+    assert.notStrictEqual(h(2 ** 31 - 1), h(2 ** 31)); // last int32 vs first non-int32
+    // Normalized/equal values still hash the same.
+    assert.strictEqual(h(-0), h(0));
+    assert.strictEqual(h(1.5), h(1.5));
+    assert.strictEqual(h(-5), h(-5)); // negative int32 fast path is deterministic
 });
 
 await test("non-composite objects have different hash values", () => {
     const c1 = Composite({ a: 1 });
     const c2 = Composite({ a: 2 });
-    assert(!Composite.equal(c1, c2));
-    assert.notStrictEqual(hashComposite(c1), hashComposite(c2));
+    assert(c1 !== c2);
+    assert.notStrictEqual(getCompositeHash(c1), getCompositeHash(c2));
 });
 
 function flip() {
@@ -45,12 +43,8 @@ function randomString() {
     }
 }
 
-function randomSymbol() {
-    return flip() ? Symbol() : Symbol.for(randomString());
-}
-
 function randomKey() {
-    return flip() ? randomString() : randomSymbol();
+    return randomString();
 }
 
 const preMade: object[] = [new Date(), Object.prototype];
@@ -102,7 +96,7 @@ function randomValue(): unknown {
 }
 
 function randomComposite(): Composite {
-    const template: Record<string | symbol, unknown> = {};
+    const template: Record<string, unknown> = {};
     const numKeys = Math.floor(Math.random() * 10) + 1;
     for (let i = 0; i < numKeys; i++) {
         template[randomKey()] = randomValue();
@@ -112,7 +106,7 @@ function randomComposite(): Composite {
 
 await test("fuzz test for hash collisions", () => {
     const hashes = new Set<number>();
-    const created = new CompositeSet();
+    const created = new Set();
     const total = 100_000;
     let collisions = 0;
     while (created.size < total) {
@@ -121,14 +115,14 @@ await test("fuzz test for hash collisions", () => {
             continue;
         }
         created.add(c);
-        const hash = hashComposite(c);
+        const hash = getCompositeHash(c);
         if (hashes.has(hash)) {
             collisions++;
         } else {
             hashes.add(hash);
         }
     }
-    const limit = total * 0.0001; // 0.01% collision rate limit
+    const limit = total * 0.00008; // 0.008% collision rate limit
     console.log(`Collisions: ${(collisions / total) * 100}%`);
     assert(collisions < limit, `Collisions exceeded limit: ${collisions} > ${limit}`);
 });

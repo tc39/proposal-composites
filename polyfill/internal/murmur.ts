@@ -1,4 +1,4 @@
-import { apply, imul, charCodeAt, Number } from "./originals.ts";
+import { imul, strCharCodeAt, Number } from "./originals.ts";
 
 const RANDOM_SEED = randomHash();
 const STRING_MARKER = randomHash();
@@ -46,7 +46,7 @@ export class MurmurHashStream implements Hasher {
             case "string":
                 this.update(STRING_MARKER);
                 for (let i = 0; i < chunk.length; i++) {
-                    const code = apply(charCodeAt, chunk, [i]);
+                    const code = strCharCodeAt(chunk, i);
                     this._writeByte(code & 0xff);
                     this._writeByte((code >>> 8) & 0xff);
                 }

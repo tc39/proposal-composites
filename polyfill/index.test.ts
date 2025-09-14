@@ -4,13 +4,7 @@ import VM from "node:vm";
 import * as index from "./index.ts";
 
 await test("index", () => {
-    assert.deepStrictEqual(Object.keys(index).sort(), [
-        "Composite",
-        "arrayPrototypeMethods",
-        "install",
-        "mapPrototypeMethods",
-        "setPrototypeMethods",
-    ]);
+    assert.deepStrictEqual(Object.keys(index).sort(), ["Composite", "install"]);
 });
 
 await test("install", () => {
@@ -36,6 +30,37 @@ await test("install", () => {
         const s = new Set();
         s.add(c1);
         assert(s.has(c2));
+
+        const wm = new WeakMap();
+        assert.throws(
+            () => wm.set(c1, 1),
+            /Invalid value used as weak map key/,
+        );
+
+        const ws = new WeakSet();
+        assert.throws(
+            () => ws.add(c1),
+            /Invalid value used in weak set/,
+        );
+
+        if (typeof WeakRef === "function") {
+            assert.throws(
+                () => new WeakRef(c1),
+                /Invalid value used in weak ref/,
+            );
+        }
+
+        if (typeof FinalizationRegistry === "function") {
+            const registry = new FinalizationRegistry(() => {});
+            assert.throws(
+                () => registry.register(c1, "held"),
+                /Invalid value used in finalization registry/,
+            );
+            assert.throws(
+                () => registry.register({}, "held", c1),
+                /Invalid value used in finalization registry/,
+            );
+        }
     `,
         ctx,
     );
