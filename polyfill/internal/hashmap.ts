@@ -1,29 +1,57 @@
 import { Map, mapSet, mapGet, apply, splice, mapDelete, mapClear, freeze } from "./originals.ts";
-import { EMPTY } from "./utils.ts";
 
 const missing = Symbol("missing");
 
-export class HashMap<K, V> {
+function replaced(): never {
+    throw new Error("implementation replaced");
+}
+
+class SafeMap<K, V> extends Map<K, V> {
+    declare get: never;
+    safeGet(k: K): V | undefined {
+        replaced();
+    }
+    declare set: never;
+    safeSet(k: K, v: V) {
+        replaced();
+    }
+    declare delete: never;
+    safeDelete(k: K) {
+        replaced();
+    }
+    declare clear: never;
+    safeClear() {
+        replaced();
+    }
+}
+SafeMap.prototype.safeGet = mapGet;
+SafeMap.prototype.safeSet = mapSet;
+SafeMap.prototype.safeDelete = mapDelete;
+SafeMap.prototype.safeClear = mapClear;
+
+export class HashStore<K> {
     #hasher: (key: K) => number;
     #equals: (a: K, b: K) => boolean;
-    #map = new Map<number, Array<[K, V]>>();
+    #map = new SafeMap<number, Array<K>>();
     constructor(hasher: (key: K) => number, equals: (a: K, b: K) => boolean) {
         this.#hasher = hasher;
         this.#equals = equals;
     }
     clear(): void {
-        apply(mapClear, this.#map, EMPTY);
+        this.#map.safeClear();
     }
-    #get(key: K): V | typeof missing {
+    #get(key: K): K | typeof missing {
         const hash = this.#hasher(key);
-        const bucket = apply(mapGet, this.#map, [hash]);
+        const bucket = this.#map.safeGet(hash);
         if (bucket === undefined) {
             return missing;
         }
+        var eq;
         for (let i = 0; i < bucket.length; i++) {
-            const k = bucket[i][0];
-            if (this.#equals(k, key)) {
-                return bucket[i][1];
+            eq ??= this.#equals;
+            const b = bucket[i];
+            if (eq(b, key)) {
+                return b;
             }
         }
         return missing;
@@ -31,40 +59,40 @@ export class HashMap<K, V> {
     has(key: K): boolean {
         return this.#get(key) !== missing;
     }
-    get(key: K): V | undefined {
+    get(key: K): K | undefined {
         const value = this.#get(key);
         if (value === missing) {
             return undefined;
         }
         return value;
     }
-    set(key: K, value: V): void {
+    set(key: K): void {
         const hash = this.#hasher(key);
-        let bucket = apply(mapGet, this.#map, [hash]);
+        let bucket = this.#map.safeGet(hash);
         if (bucket === undefined) {
             bucket = [];
-            apply(mapSet, this.#map, [hash, bucket]);
+            this.#map.safeSet(hash, bucket);
         }
         for (let i = 0; i < bucket.length; i++) {
-            const k = bucket[i][0];
+            const k = bucket[i];
             if (this.#equals(k, key)) {
-                bucket[i][1] = value;
+                bucket[i] = key;
                 return;
             }
         }
-        bucket[bucket.length] = [key, value];
+        bucket[bucket.length] = key;
     }
     delete(key: K): boolean {
         const hash = this.#hasher(key);
-        const bucket = apply(mapGet, this.#map, [hash]);
+        const bucket = this.#map.safeGet(hash);
         if (bucket === undefined) {
             return false;
         }
         for (let i = 0; i < bucket.length; i++) {
-            const k = bucket[i][0];
+            const k = bucket[i];
             if (this.#equals(k, key)) {
                 if (bucket.length === 1) {
-                    apply(mapDelete, this.#map, [hash]);
+                    this.#map.safeDelete(hash);
                 } else {
                     apply(splice, bucket, [i, 1]);
                 }
@@ -74,5 +102,5 @@ export class HashMap<K, V> {
         return false;
     }
 }
-freeze(HashMap.prototype);
-freeze(HashMap);
+freeze(HashStore.prototype);
+freeze(HashStore);

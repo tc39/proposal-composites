@@ -1,7 +1,8 @@
-import type { Composite } from "../composite.ts";
+import { isComposite, type Composite } from "../composite.ts";
 import { isNaN, NaN, apply, ownKeys, keyFor, weakMapGet, weakMapSet, sort, localeCompare } from "./originals.ts";
 import { assert } from "./utils.ts";
 import { randomHash, MurmurHashStream, type Hasher } from "./murmur.ts";
+import { getCompositeHash, maybeGetCompositeHash, setHash } from "./composite-class.ts";
 
 const TRUE = randomHash();
 const FALSE = randomHash();
@@ -11,7 +12,7 @@ const SYMBOLS = randomHash();
 const KEY = randomHash();
 const OBJECTS = randomHash();
 
-const hashCache = new WeakMap<symbol | object, number | typeof lazyCompositeHash>();
+const hashCache = new WeakMap<symbol | object, number>();
 const symbolsInWeakMap = (() => {
     try {
         hashCache.set(Symbol(), 0);
@@ -21,29 +22,15 @@ const symbolsInWeakMap = (() => {
     }
 })();
 
-const lazyCompositeHash = Symbol("lazy");
-export function prepareLazyHash(input: Composite): void {
-    assert(apply(weakMapGet, hashCache, [input]) === undefined);
-    apply(weakMapSet, hashCache, [input, lazyCompositeHash]);
-}
-
-export function maybeHashComposite(input: Composite): number | undefined {
-    let hash: number | typeof lazyCompositeHash = apply(weakMapGet, hashCache, [input]);
-    if (hash !== lazyCompositeHash) {
-        assert(typeof hash === "number");
-        return hash;
-    }
-    return undefined;
-}
-
+const keySortArgs = [keySort];
 export function hashComposite(input: Composite): number {
-    const cachedHash = maybeHashComposite(input);
-    if (cachedHash !== undefined) {
+    const cachedHash = getCompositeHash(input);
+    if (cachedHash !== 0) {
         return cachedHash;
     }
     const hasher = new MurmurHashStream();
     const keys = ownKeys(input);
-    apply(sort, keys, [keySort]);
+    apply(sort, keys, keySortArgs);
     for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
         if (typeof key === "string") {
@@ -52,7 +39,7 @@ export function hashComposite(input: Composite): number {
             updateHasher(hasher, input[key as keyof typeof input]);
             continue;
         }
-        assert(typeof key === "symbol");
+        DEV: assert(typeof key === "symbol");
         if (!symbolsInWeakMap && keyFor(key) === undefined) {
             // Remaining keys can't be hashed in this JS engine
             break;
@@ -61,9 +48,9 @@ export function hashComposite(input: Composite): number {
         symbolUpdateHasher(hasher, key);
         updateHasher(hasher, input[key as keyof typeof input]);
     }
-    assert(apply(weakMapGet, hashCache, [input]) === lazyCompositeHash);
+    DEV: assert(getCompositeHash(input) === 0);
     const hash = hasher.digest();
-    apply(weakMapSet, hashCache, [input, hash]);
+    setHash(input, hash);
     return hash;
 }
 
@@ -116,15 +103,17 @@ function symbolUpdateHasher(hasher: Hasher, input: symbol): void {
 
 let nextObjectId = 1;
 function cachedHash(input: object | symbol): number {
+    let maybeCompHash = typeof input === "object" ? maybeGetCompositeHash(input) : undefined;
+    if (maybeCompHash !== undefined) {
+        DEV: assert(isComposite(input));
+        return maybeCompHash !== 0 ? maybeCompHash : hashComposite(input);
+    }
     let hash = apply(weakMapGet, hashCache, [input]);
     if (hash === undefined) {
         hash = nextObjectId ^ OBJECTS;
         nextObjectId++;
         apply(weakMapSet, hashCache, [input, hash]);
         return hash;
-    }
-    if (hash === lazyCompositeHash) {
-        return hashComposite(input as Composite);
     }
     return hash;
 }
@@ -141,7 +130,7 @@ function keySort(a: string | symbol, b: string | symbol): number {
     if (typeof a === "string") {
         return apply(localeCompare, a, [b]);
     }
-    assert(typeof b === "symbol");
+    DEV: assert(typeof b === "symbol");
     return symbolSort(a, b);
 }
 
