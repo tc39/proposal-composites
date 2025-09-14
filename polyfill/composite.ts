@@ -1,5 +1,15 @@
-import { assert, sameValueZero } from "./internal/utils.ts";
-import { ownKeys, apply, freeze, setAdd, setHas, Set, setPrototypeOf, objectPrototype } from "./internal/originals.ts";
+import { assert, EMPTY, sameValueZero } from "./internal/utils.ts";
+import {
+    ownKeys,
+    apply,
+    freeze,
+    setAdd,
+    setHas,
+    Set,
+    setPrototypeOf,
+    objectPrototype,
+    sort,
+} from "./internal/originals.ts";
 import { __Composite__, objectIsComposite, maybeGetCompositeHash, setHash } from "./internal/composite-class.ts";
 
 export type Composite = __Composite__;
@@ -13,8 +23,19 @@ export function Composite(arg: object): Composite {
     }
     const argKeys = ownKeys(arg);
     const c = new __Composite__();
+    const stringKeys: string[] = [];
     for (let i = 0; i < argKeys.length; i++) {
         let k = argKeys[i];
+        if (typeof k === "string") {
+            stringKeys[stringKeys.length] = k;
+        } else {
+            DEV: assert(typeof k === "symbol");
+            (c as any)[k] = (arg as any)[k];
+        }
+    }
+    apply(sort, stringKeys, EMPTY);
+    for (let i = 0; i < stringKeys.length; i++) {
+        let k = stringKeys[i];
         (c as any)[k] = (arg as any)[k];
     }
     setPrototypeOf(c, objectPrototype);
@@ -55,6 +76,7 @@ export function compositeEqual(a: unknown, b: unknown): boolean {
         const aKey = aKeys[i];
         const bKey = bKeys[i];
         if (typeof aKey !== typeof bKey) {
+            // Different ratios of strings and symbols
             return false;
         }
         if (typeof aKey === "symbol") {

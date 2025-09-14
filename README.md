@@ -137,13 +137,6 @@ c.d === d; // true
 Object.is(c.zero, -0); // true
 ```
 
-The key order matches the argument used to construct it ([#1](https://github.com/acutmore/proposal-composites/issues/1)).
-
-```js
-const c = Composite({ z: true, x: true, y: true });
-Object.keys(c); // ["z", "x", "y"]
-```
-
 ### What are the equality semantics?
 
 Two composites are equal only if they have the same prototype ([#5](https://github.com/acutmore/proposal-composites/issues/5)) and their properties form the same set of key-value pairs.

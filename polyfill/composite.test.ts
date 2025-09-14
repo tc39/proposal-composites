@@ -51,7 +51,7 @@ await test("key order", () => {
         [s3]: 0,
     });
     const keys = Reflect.ownKeys(c);
-    assert.deepStrictEqual(keys, ["0", "10", "b", "a", s1, sB, s2, sA, s3]);
+    assert.deepStrictEqual(keys, ["0", "10", "a", "b", s1, sB, s2, sA, s3]);
 });
 await test(".equal non-composite equal", () => {
     assert(Composite.equal(-0, 0));
@@ -82,7 +82,12 @@ await test(".equal composites symbol props equal", () => {
     const s2 = Symbol();
     const c1 = Composite({ [s1]: 1, [s2]: 2 });
     assert(Composite.equal(c1, Composite({ [s1]: 1, [s2]: 2 })));
-    assert(Composite.equal(c1, Composite({ [s2]: 2, [s1]: 1 })));
+
+    const c2 = Composite({ [s2]: 2, [s1]: 1 });
+    assert(Composite.equal(c1, c2));
+
+    assert.deepStrictEqual(Reflect.ownKeys(c1), [s1, s2]);
+    assert.deepStrictEqual(Reflect.ownKeys(c2), [s2, s1]);
 });
 await test(".equal composites symbol props not-equal", () => {
     const s1 = Symbol();
@@ -141,4 +146,20 @@ await test(".equal composites interesting decimal numbers", () => {
     const c3 = Composite({ a: 1 + 2 * Number.EPSILON });
     assert(c2 !== c3, "c2 and c3 should not be the same object");
     assert(Composite.equal(c2, c3), "c2 and c3 should be equal");
+});
+await test(".equal composites with polluted Object.prototype", () => {
+    (Object.prototype as any)["pollution"] = true;
+    try {
+        const c1 = Composite({ pollution: true });
+        const c2 = Composite({ other: true });
+        assert(!Composite.equal(c1, c2), "c1 and c2 should not be equal");
+    } finally {
+        delete (Object.prototype as any)["pollution"];
+    }
+});
+
+await test(".equal composites with different key order", () => {
+    const c1 = Composite({ a: true, b: true });
+    const c2 = Composite({ b: true, a: true });
+    assert(Composite.equal(c1, c2), "c1 and c2 should not be equal");
 });
