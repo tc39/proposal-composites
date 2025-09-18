@@ -1,7 +1,6 @@
 import { setPrototypeOf } from "./originals.ts";
 
 export class __Composite__ {
-    // 0 == lazy hash
     #hash = 0;
     static maybeGetCompositeHash(c: object): number | undefined {
         if (#hash in c) return c.#hash;
@@ -14,8 +13,6 @@ export class __Composite__ {
         return #hash in c;
     }
     static setHash(c: __Composite__, hash: number): void {
-        // 0 == lazy hash
-        if (hash === 0) hash = 1;
         c.#hash = hash;
     }
 }

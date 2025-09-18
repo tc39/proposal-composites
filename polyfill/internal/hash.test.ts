@@ -1,36 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { Composite } from "../composite.ts";
-import { hashComposite } from "./hash.ts";
-import { Set } from "./originals.ts";
-import { setPrototypeMethods } from "../collection-set.ts";
-
-class CompositeSet<T> extends Set<T> {}
-for (const [key, method] of Object.entries(setPrototypeMethods)) {
-    (CompositeSet.prototype as any)[key] = method;
-}
-
-await test("unique symbol key order does not impact hash", () => {
-    const s1 = Symbol();
-    const s2 = Symbol();
-    const c1 = Composite({ [s1]: 1, [s2]: 2 });
-    const c2 = Composite({ [s2]: 2, [s1]: 1 });
-    assert(Composite.equal(c1, c2));
-    assert.strictEqual(hashComposite(c1), hashComposite(c2));
-});
+import { getCompositeHash } from "./composite-class.ts";
 
 await test("hash is same value zero", () => {
     const c1 = Composite({ x: 0 });
     const c2 = Composite({ x: -0 });
-    assert(Composite.equal(c1, c2));
-    assert.strictEqual(hashComposite(c1), hashComposite(c2));
+    assert(c1 === c2);
 });
 
 await test("non-composite objects have different hash values", () => {
     const c1 = Composite({ a: 1 });
     const c2 = Composite({ a: 2 });
-    assert(!Composite.equal(c1, c2));
-    assert.notStrictEqual(hashComposite(c1), hashComposite(c2));
+    assert(c1 !== c2);
+    assert.notStrictEqual(getCompositeHash(c1), getCompositeHash(c2));
 });
 
 function flip() {
@@ -45,12 +28,8 @@ function randomString() {
     }
 }
 
-function randomSymbol() {
-    return flip() ? Symbol() : Symbol.for(randomString());
-}
-
 function randomKey() {
-    return flip() ? randomString() : randomSymbol();
+    return randomString();
 }
 
 const preMade: object[] = [new Date(), Object.prototype];
@@ -102,7 +81,7 @@ function randomValue(): unknown {
 }
 
 function randomComposite(): Composite {
-    const template: Record<string | symbol, unknown> = {};
+    const template: Record<string, unknown> = {};
     const numKeys = Math.floor(Math.random() * 10) + 1;
     for (let i = 0; i < numKeys; i++) {
         template[randomKey()] = randomValue();
@@ -112,7 +91,7 @@ function randomComposite(): Composite {
 
 await test("fuzz test for hash collisions", () => {
     const hashes = new Set<number>();
-    const created = new CompositeSet();
+    const created = new Set();
     const total = 100_000;
     let collisions = 0;
     while (created.size < total) {
@@ -121,7 +100,7 @@ await test("fuzz test for hash collisions", () => {
             continue;
         }
         created.add(c);
-        const hash = hashComposite(c);
+        const hash = getCompositeHash(c);
         if (hashes.has(hash)) {
             collisions++;
         } else {

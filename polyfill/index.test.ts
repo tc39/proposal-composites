@@ -6,10 +6,7 @@ import * as index from "./index.ts";
 await test("index", () => {
     assert.deepStrictEqual(Object.keys(index).sort(), [
         "Composite",
-        "arrayPrototypeMethods",
         "install",
-        "mapPrototypeMethods",
-        "setPrototypeMethods",
     ]);
 });
 

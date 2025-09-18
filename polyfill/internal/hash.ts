@@ -1,15 +1,15 @@
-import { isComposite, type Composite } from "../composite.ts";
-import { isNaN, NaN, apply, ownKeys, keyFor, weakMapGet, weakMapSet, sort, localeCompare } from "./originals.ts";
+import { isComposite } from "../composite.ts";
+import { isNaN, NaN, apply, weakMapGet, weakMapSet } from "./originals.ts";
 import { assert } from "./utils.ts";
-import { randomHash, MurmurHashStream, type Hasher } from "./murmur.ts";
-import { getCompositeHash, maybeGetCompositeHash, setHash } from "./composite-class.ts";
+import { randomHash, type Hasher } from "./murmur.ts";
+import { maybeGetCompositeHash } from "./composite-class.ts";
 
 const TRUE = randomHash();
 const FALSE = randomHash();
 const NULL = randomHash();
 const UNDEFINED = randomHash();
 const SYMBOLS = randomHash();
-const KEY = randomHash();
+export const KEY = randomHash();
 const OBJECTS = randomHash();
 
 const hashCache = new WeakMap<symbol | object, number>();
@@ -22,39 +22,7 @@ const symbolsInWeakMap = (() => {
     }
 })();
 
-const keySortArgs = [keySort];
-export function hashComposite(input: Composite): number {
-    const cachedHash = getCompositeHash(input);
-    if (cachedHash !== 0) {
-        return cachedHash;
-    }
-    const hasher = new MurmurHashStream();
-    const keys = ownKeys(input);
-    apply(sort, keys, keySortArgs);
-    for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-        if (typeof key === "string") {
-            hasher.update(KEY);
-            hasher.update(key);
-            updateHasher(hasher, input[key as keyof typeof input]);
-            continue;
-        }
-        DEV: assert(typeof key === "symbol");
-        if (!symbolsInWeakMap && keyFor(key) === undefined) {
-            // Remaining keys can't be hashed in this JS engine
-            break;
-        }
-        hasher.update(KEY);
-        symbolUpdateHasher(hasher, key);
-        updateHasher(hasher, input[key as keyof typeof input]);
-    }
-    DEV: assert(getCompositeHash(input) === 0);
-    const hash = hasher.digest();
-    setHash(input, hash);
-    return hash;
-}
-
-function updateHasher(hasher: Hasher, input: unknown): void {
+export function updateHasher(hasher: Hasher, input: unknown): void {
     if (input === null) {
         hasher.update(NULL);
         return;
@@ -106,7 +74,7 @@ function cachedHash(input: object | symbol): number {
     let maybeCompHash = typeof input === "object" ? maybeGetCompositeHash(input) : undefined;
     if (maybeCompHash !== undefined) {
         DEV: assert(isComposite(input));
-        return maybeCompHash !== 0 ? maybeCompHash : hashComposite(input);
+        return maybeCompHash;
     }
     let hash = apply(weakMapGet, hashCache, [input]);
     if (hash === undefined) {
@@ -116,51 +84,4 @@ function cachedHash(input: object | symbol): number {
         return hash;
     }
     return hash;
-}
-
-/**
- * Strings before symbols.
- * Strings sorted lexicographically.
- * Symbols sorted by {@link symbolSort}
- */
-function keySort(a: string | symbol, b: string | symbol): number {
-    if (typeof a !== typeof b) {
-        return typeof a === "string" ? 1 : -1;
-    }
-    if (typeof a === "string") {
-        return apply(localeCompare, a, [b]);
-    }
-    DEV: assert(typeof b === "symbol");
-    return symbolSort(a, b);
-}
-
-/**
- * Registered symbols are sorted by their string key.
- * Registered symbols come before non-registered symbols.
- * Non-registered symbols are not sorted (stable order preserved).
- */
-function symbolSort(a: symbol, b: symbol): number {
-    const regA = keyFor(a);
-    const regB = keyFor(b);
-    if (regA !== undefined && regB !== undefined) {
-        return apply(localeCompare, regA, [regB]);
-    }
-    if (regA === undefined && regB === undefined) {
-        return symbolsInWeakMap ? secretSymbolSort(a, b) : 0;
-    }
-    return regA === undefined ? 1 : -1;
-}
-
-const secretSymbolOrder = new WeakMap<symbol, number>();
-let nextOrder = 0;
-function getSymbolOrder(input: symbol): number {
-    let order = secretSymbolOrder.get(input);
-    if (order === undefined) {
-        order = nextOrder++;
-        secretSymbolOrder.set(input, order);
-    }
-    return order;
-}
-function secretSymbolSort(a: symbol, b: symbol): number {
-    return getSymbolOrder(a) - getSymbolOrder(b);
 }
