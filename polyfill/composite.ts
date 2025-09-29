@@ -36,6 +36,13 @@ const fr = new FinalizationRegistry((hash: number) => {
     }
 });
 
+function isStringArray(a: unknown[]): a is string[] {
+    for (let i = 0; i < a.length; i++) {
+        if (typeof a !== "string") return false;
+    }
+    return true;
+}
+
 export function Composite(arg: object): Composite {
     if (new.target) {
         throw new TypeError("Composite should not be constructed with 'new'");
@@ -61,6 +68,8 @@ export function Composite(arg: object): Composite {
         }
     }
 
+    DEV: assert(isStringArray(argKeys));
+
     let hash = hasher.digest();
     let cs = composites.safeGet(hash);
     if (!cs) {
@@ -71,7 +80,7 @@ export function Composite(arg: object): Composite {
         for (let i = 0; i < cs.length; i++) {
             let ref = cs[i]?.safeDeref();
             if (ref !== void 0) {
-                if (compositesStructurallyEqual(ref, c)) {
+                if (compositesStructurallyEqual(ref, c, argKeys)) {
                     return ref;
                 }
             } else if (emptyI === -1) {
@@ -109,9 +118,8 @@ function compositeEqual(a: unknown, b: unknown): boolean {
     return false;
 }
 
-function compositesStructurallyEqual(a: Composite, b: Composite): boolean {
+function compositesStructurallyEqual(a: Composite, b: Composite, bKeys: readonly string[]): boolean {
     const aKeys = ownKeys(a);
-    const bKeys = ownKeys(b);
     if (aKeys.length !== bKeys.length) {
         return false;
     }
