@@ -38,7 +38,7 @@ const fr = new FinalizationRegistry((hash: number) => {
 
 function isStringArray(a: unknown[]): a is string[] {
     for (let i = 0; i < a.length; i++) {
-        if (typeof a !== "string") return false;
+        if (typeof a[i] !== "string") return false;
     }
     return true;
 }
