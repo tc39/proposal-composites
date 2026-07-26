@@ -4,36 +4,308 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/styles/github.min.css">
 <script src="./spec.js"></script>
 <pre class="metadata">
-title: Proposal Title Goes Here
-stage: -1
-contributors: Your Name(s) Here
+title: Composites
+stage: 1
+contributors: Ashley Claymore
 </pre>
 
-<emu-clause id="sec-demo-clause">
-  <h1>This is an emu-clause</h1>
-  <p>This is an algorithm:</p>
-  <emu-alg>
-    1. Let _proposal_ be *undefined*.
-    1. If IsAccepted(_proposal_) is *true*, then
-      1. Let _stage_ be *0*<sub>ℤ</sub>.
-    1. Else,
-      1. Let _stage_ be *-1*<sub>ℤ</sub>.
-    1. Return ? ToString(_stage_).
-  </emu-alg>
+<emu-intro id="sec-intro">
+  <h1>Composites</h1>
+  <p>This proposal introduces built-in <dfn variants="composite">composites</dfn>: frozen, ordinary objects with a null prototype that are <em>interned</em>, so that two composites created from the same set of named values are the same object (identical under <emu-xref href="#sec-samevalue">SameValue</emu-xref>, and therefore under `===`).</p>
+  <p>Because composites are interned, they can be used as <emu-xref href="#sec-map-objects">Map</emu-xref> keys and <emu-xref href="#sec-set-objects">Set</emu-xref> values with value-based equality without any change to `Map`, `Set`, or the equality operators:</p>
+  <pre><code class="javascript">
+    const pos1 = Composite({ x: 1, y: 4 });
+    const pos2 = Composite({ x: 1, y: 4 });
+    pos1 === pos2; // true
+
+    const positions = new Set();
+    positions.add(pos1);
+    positions.has(pos2); // true
+  </code></pre>
+  <emu-note>
+    <p>This section is non-normative.</p>
+    <p>A composite:</p>
+    <ul>
+      <li>is an Object (`typeof Composite({})` is *"object"*);</li>
+      <li>has a *null* prototype and is not created with `new`;</li>
+      <li>is <emu-xref href="#sec-object.isfrozen">frozen</emu-xref>, and all of its properties are enumerable;</li>
+      <li>has only String keys, presented in a canonical order that does not depend on the order they were provided;</li>
+      <li>cannot be held weakly (see <emu-xref href="#sec-canbeheldweakly"></emu-xref>).</li>
+    </ul>
+  </emu-note>
+</emu-intro>
+
+<emu-clause id="sec-well-known-intrinsic-objects">
+  <h1>Well-Known Intrinsic Objects</h1>
+  <p>The following entry is added to <emu-xref href="#table-well-known-intrinsic-objects">Table 6 (Well-Known Intrinsic Objects)</emu-xref>:</p>
+  <emu-table id="table-well-known-intrinsic-objects-additions" caption="Well-Known Intrinsic Objects (additions)">
+    <table>
+      <thead>
+        <tr>
+          <th>Intrinsic Name</th>
+          <th>Global Name</th>
+          <th>ECMAScript Language Association</th>
+        </tr>
+      </thead>
+      <tr>
+        <td>%Composite%</td>
+        <td>`Composite`</td>
+        <td>The Composite function (<emu-xref href="#sec-composite-function"></emu-xref>)</td>
+      </tr>
+    </table>
+  </emu-table>
 </emu-clause>
 
-<emu-clause id="sec-is-accepted" type="abstract operation">
-  <h1>
-      IsAccepted (
-        _proposal_: an ECMAScript language value
+<emu-clause id="sec-composite-objects">
+  <h1>Composite Objects</h1>
+
+  <p>A <dfn>composite object</dfn> is an ordinary object that is contained in the surrounding agent's Composite Registry (<emu-xref href="#sec-composite-registry"></emu-xref>). Composite objects are only created by FindOrCreateComposite (<emu-xref href="#sec-findorcreatecomposite"></emu-xref>), which is the only operation that adds an object to the Composite Registry. An object's status as a composite object cannot be forged: because only membership in the Composite Registry matters, an object such as a Proxy exotic object whose target is a composite object is not itself a composite object.</p>
+
+  <p>Every composite object has a [[Prototype]] of *null*, has [[Extensible]] set to *false*, and has only own data properties whose [[Writable]] and [[Configurable]] attributes are *false* and whose [[Enumerable]] attribute is *true*. All keys of a composite object are Strings.</p>
+
+  <p>Composite objects are interned: within an <emu-xref href="#sec-agents">agent</emu-xref>, there is at most one composite object for any given set of key/value pairs (see <emu-xref href="#sec-composite-registry"></emu-xref>). Two composite objects that would have the same key/value pairs are therefore the same object.</p>
+
+  <emu-clause id="sec-composite-function">
+    <h1>The Composite Function</h1>
+    <p>The Composite function:</p>
+    <ul>
+      <li>is <dfn>%Composite%</dfn>.</li>
+      <li>is the initial value of the *"Composite"* property of the global object.</li>
+      <li>returns a composite object when called as a function, creating one only if no interned composite with the same key/value pairs already exists.</li>
+      <li>does not have a [[Construct]] internal method; it cannot be used as a constructor with the `new` operator.</li>
+      <li>does not have a *"prototype"* property.</li>
+    </ul>
+
+    <emu-clause id="sec-composite-function-arg">
+      <h1>Composite ( _arg_ )</h1>
+      <p>This function performs the following steps when called:</p>
+      <emu-alg>
+        1. If _arg_ is not an Object, throw a *TypeError* exception.
+        1. Let _entries_ be a new empty List.
+        1. Let _keys_ be ? _arg_.[[OwnPropertyKeys]]().
+        1. For each element _key_ of _keys_, do
+          1. Let _desc_ be ? _arg_.[[GetOwnProperty]](_key_).
+          1. If _desc_ is not *undefined* and _desc_.[[Enumerable]] is *true*, then
+            1. If _key_ is a Symbol, throw a *TypeError* exception.
+            1. Let _value_ be ? Get(_arg_, _key_).
+            1. Set _value_ to CanonicalizeCompositeValue(_value_).
+            1. Append the Composite Entry Record { [[Key]]: _key_, [[Value]]: _value_ } to _entries_.
+        1. Return FindOrCreateComposite(_entries_).
+      </emu-alg>
+      <emu-note>
+        <p>Values are read from _arg_ in the order the keys are reported by _arg_.[[OwnPropertyKeys]](). Getters are therefore invoked exactly once each, eagerly, during this operation. The order in which the resulting properties appear on the composite object does not depend on this order; see FindOrCreateComposite (<emu-xref href="#sec-findorcreatecomposite"></emu-xref>).</p>
+      </emu-note>
+      <emu-note>
+        <p>Only own enumerable properties of _arg_ contribute to the composite; inherited and non-enumerable properties are ignored. An own enumerable Symbol-keyed property throws a *TypeError*; a non-enumerable one is ignored.</p>
+      </emu-note>
+      <emu-note>
+        <p>If _arg_ is itself a composite object, the result is a composite object with the same key/value pairs, which by interning is _arg_ itself.</p>
+      </emu-note>
+    </emu-clause>
+  </emu-clause>
+
+  <emu-clause id="sec-properties-of-the-composite-function">
+    <h1>Properties of the Composite Function</h1>
+    <p>The Composite function:</p>
+    <ul>
+      <li>has a [[Prototype]] internal slot whose value is %Function.prototype%.</li>
+      <li>has the following properties:</li>
+    </ul>
+
+    <emu-clause id="sec-composite.iscomposite">
+      <h1>Composite.isComposite ( _arg_ )</h1>
+      <p>This function performs the following steps when called:</p>
+      <emu-alg>
+        1. Return IsComposite(_arg_).
+      </emu-alg>
+    </emu-clause>
+  </emu-clause>
+</emu-clause>
+
+<emu-clause id="sec-composite-abstract-operations">
+  <h1>Abstract Operations for Composite Objects</h1>
+
+  <emu-clause id="sec-iscomposite" type="abstract operation">
+    <h1>
+      IsComposite (
+        _value_: an ECMAScript language value,
       ): a Boolean
-  </h1>
-  <dl class="header">
-    <dt>description</dt>
-    <dd>Tells you if the proposal was accepted</dd>
-  </dl>
-  <emu-alg>
-    1. If _proposal_ is not a String, or is not accepted, return *false*.
-    1. Return *true*.
-  </emu-alg>
+    </h1>
+    <dl class="header">
+      <dt>description</dt>
+      <dd>It returns *true* if _value_ is a composite object.</dd>
+    </dl>
+    <emu-alg>
+      1. If _value_ is not an Object, return *false*.
+      1. If the surrounding agent's Composite Registry contains _value_, return *true*.
+      1. Return *false*.
+    </emu-alg>
+    <emu-note>
+      <p>This operation is defined in terms of searching the Composite Registry, but an implementation is free to use any faster mechanism that avoids such a search as long as the observable behaviour is equivalent.</p>
+    </emu-note>
+  </emu-clause>
+
+  <emu-clause id="sec-canonicalizecompositevalue" type="abstract operation">
+    <h1>
+      CanonicalizeCompositeValue (
+        _value_: an ECMAScript language value,
+      ): an ECMAScript language value
+    </h1>
+    <dl class="header">
+      <dt>description</dt>
+      <dd>It returns a canonical representative of _value_, chosen so that any two values that SameValueZero treats as equal have the same representative.</dd>
+    </dl>
+    <emu-alg>
+      1. If _value_ is *-0*<sub>𝔽</sub>, return *+0*<sub>𝔽</sub>.
+      1. Return _value_.
+    </emu-alg>
+    <emu-note>
+      <p>This specification recognizes a single *NaN* Number value, so at this level all *NaN* arguments are the same value and no normalization step is written for them. Distinct *NaN* bit patterns can nevertheless be observed through a TypedArray (see <emu-xref href="#sec-numerictorawbytes">NumericToRawBytes</emu-xref>); an implementation that preserves such bit patterns in ordinary storage must ensure that neither the identity of a composite nor the value later read back from it depends on which *NaN* bit pattern was supplied: it must canonicalize *NaN*.</p>
+    </emu-note>
+  </emu-clause>
+
+  <emu-clause id="sec-composite-entry-records">
+    <h1>Composite Entry Records</h1>
+    <p>A <dfn variants="Composite Entry Records">Composite Entry Record</dfn> is a Record value used to describe a single key/value pair of a composite object.</p>
+    <p>Composite Entry Records have the fields listed in <emu-xref href="#table-composite-entry-record"></emu-xref>.</p>
+    <emu-table id="table-composite-entry-record" caption="Composite Entry Record Fields">
+      <table>
+        <thead>
+          <tr>
+            <th>Field Name</th>
+            <th>Value</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tr>
+          <td>[[Key]]</td>
+          <td>a String</td>
+          <td>The property key.</td>
+        </tr>
+        <tr>
+          <td>[[Value]]</td>
+          <td>an ECMAScript language value</td>
+          <td>The property value.</td>
+        </tr>
+      </table>
+    </emu-table>
+  </emu-clause>
+
+  <emu-clause id="sec-compositecanonicalorder" type="abstract operation">
+    <h1>
+      CompositeCanonicalOrder (
+        _entries_: a List of Composite Entry Records,
+      ): a List of Composite Entry Records
+    </h1>
+    <dl class="header">
+      <dt>description</dt>
+      <dd>It returns _entries_ ordered into the canonical key order used by composite objects. This order does not depend on the order in which the entries were provided, giving composites a canonical form.</dd>
+    </dl>
+    <emu-alg>
+      1. Let _integerEntries_ be a new empty List.
+      1. Let _stringEntries_ be a new empty List.
+      1. For each Composite Entry Record _entry_ of _entries_, do
+        1. Assert: _entry_.[[Key]] is a String.
+        1. If _entry_.[[Key]] is an array index, append _entry_ to _integerEntries_; otherwise, append _entry_ to _stringEntries_.
+      1. Sort _integerEntries_ into ascending order according to the numeric values of the array indices denoted by their [[Key]] fields.
+      1. Sort _stringEntries_ into ascending order according to the lexicographic order of their [[Key]] fields, comparing them by code unit.
+      1. Return the list-concatenation of _integerEntries_ and _stringEntries_.
+    </emu-alg>
+    <emu-note>
+      <p>This is the same key order ordinary objects use for their own String keys (array-index keys in ascending numeric order, then the rest), except that composites order the remaining String keys lexicographically rather than by creation order.</p>
+    </emu-note>
+  </emu-clause>
+
+  <emu-clause id="sec-findorcreatecomposite" type="abstract operation">
+    <h1>
+      FindOrCreateComposite (
+        _entries_: a List of Composite Entry Records,
+      ): a composite object
+    </h1>
+    <dl class="header">
+      <dt>description</dt>
+      <dd>It returns the interned composite object for the key/value pairs described by _entries_, creating it if it does not already exist. It is assumed that no two elements of _entries_ have the same [[Key]], and that each element's [[Value]] is already the result of CanonicalizeCompositeValue (<emu-xref href="#sec-canonicalizecompositevalue"></emu-xref>).</dd>
+    </dl>
+    <emu-alg>
+      1. Let _sortedEntries_ be CompositeCanonicalOrder(_entries_).
+      1. Let _registry_ be the surrounding agent's Composite Registry.
+      1. For each composite object _c_ of _registry_, do
+        1. If CompositeMatch(_c_, _sortedEntries_) is *true*, return _c_.
+      1. Let _c_ be OrdinaryObjectCreate(*null*).
+      1. For each Composite Entry Record _entry_ of _sortedEntries_, do
+        1. Let _desc_ be the PropertyDescriptor { [[Value]]: _entry_.[[Value]], [[Writable]]: *false*, [[Enumerable]]: *true*, [[Configurable]]: *false* }.
+        1. Perform ! DefinePropertyOrThrow(_c_, _entry_.[[Key]], _desc_).
+      1. Set _c_.[[Extensible]] to *false*.
+      1. Add _c_ to _registry_.
+      1. Return _c_.
+    </emu-alg>
+    <emu-note>
+      <p>The search over _registry_ is only intended to describe the required observable result of interning; it is not intended to be a viable implementation model. Interning must be implemented using either hash tables or other mechanisms that, on average, provide interning times that are sublinear on the number of composite objects in the registry.</p>
+    </emu-note>
+  </emu-clause>
+
+  <emu-clause id="sec-compositematch" type="abstract operation">
+    <h1>
+      CompositeMatch (
+        _c_: a composite object,
+        _sortedEntries_: a List of Composite Entry Records,
+      ): a Boolean
+    </h1>
+    <dl class="header">
+      <dt>description</dt>
+      <dd>It returns *true* if the existing composite object _c_ has exactly the key/value pairs described by _sortedEntries_.</dd>
+    </dl>
+    <emu-alg>
+      1. Assert: _sortedEntries_ is in the canonical key order produced by CompositeCanonicalOrder (<emu-xref href="#sec-compositecanonicalorder"></emu-xref>).
+      1. Let _keys_ be ! _c_.[[OwnPropertyKeys]]().
+      1. Assert: _keys_ is in the canonical key order produced by CompositeCanonicalOrder (<emu-xref href="#sec-compositecanonicalorder"></emu-xref>).
+      1. If the number of elements in _keys_ is not equal to the number of elements in _sortedEntries_, return *false*.
+      1. Let _i_ be 0.
+      1. For each Composite Entry Record _entry_ of _sortedEntries_, do
+        1. Let _key_ be _keys_[_i_].
+        1. If _entry_.[[Key]] is not _key_, return *false*.
+        1. Let _current_ be ! Get(_c_, _key_).
+        1. If SameValue(_current_, _entry_.[[Value]]) is *false*, return *false*.
+        1. Set _i_ to _i_ + 1.
+      1. Return *true*.
+    </emu-alg>
+    <emu-note>
+      <p>Both _c_'s values and _sortedEntries_ are already canonicalized, so SameValue and SameValueZero coincide here.</p>
+    </emu-note>
+  </emu-clause>
+
+  <emu-clause id="sec-composite-registry">
+    <h1>The Composite Registry</h1>
+    <p>Each <emu-xref href="#sec-agents">agent</emu-xref> has an associated <dfn>Composite Registry</dfn>: a List of Objects, initially empty. The objects it contains are exactly the composite objects of that agent (<emu-xref href="#sec-composite-objects"></emu-xref>). Objects are added to it only by FindOrCreateComposite (<emu-xref href="#sec-findorcreatecomposite"></emu-xref>) and are shared across all realms within the agent.</p>
+    <emu-note>
+      <p>Membership in the registry does not keep a composite object alive; an implementation may remove one once it is no longer <emu-xref href="#sec-liveness">live</emu-xref>. This removal is unobservable, since composite objects cannot be held weakly (see <emu-xref href="#sec-canbeheldweakly"></emu-xref>) and so cannot be placed in a <emu-xref href="#sec-weakmap-constructor">WeakMap</emu-xref>, <emu-xref href="#sec-weak-ref-constructor">WeakRef</emu-xref>, <emu-xref href="#sec-weakset-constructor">WeakSet</emu-xref>, or <emu-xref href="#sec-finalization-registry-constructor">FinalizationRegistry</emu-xref>.</p>
+    </emu-note>
+    <emu-note>
+      <p>The Composite Registry is per-<emu-xref href="#sec-agents">agent</emu-xref>, not per-<emu-xref href="#sec-code-realms">realm</emu-xref>. As a result, composites are equal across realms within the same agent (for example, across same-origin iframes), similar to symbols obtained from <emu-xref href="#sec-symbol.for">`Symbol.for`</emu-xref>. A composite object created via one realm's `Composite` function has a [[Prototype]] of *null* and so bears no relationship to the realm that created it; only the key/value pairs matter.</p>
+    </emu-note>
+  </emu-clause>
+</emu-clause>
+
+<emu-clause id="sec-modifications">
+  <h1>Modifications to Existing Abstract Operations</h1>
+
+  <emu-clause id="sec-canbeheldweakly" type="abstract operation">
+    <h1>
+      CanBeHeldWeakly (
+        _v_: an ECMAScript language value,
+      ): a Boolean
+    </h1>
+    <dl class="header">
+      <dt>description</dt>
+      <dd>It returns *true* if and only if _v_ is suitable to be used as a key of a WeakMap, added to a WeakSet, used as the target or unregister token of a FinalizationRegistry, or held by a WeakRef.<ins> Composite objects are excluded because they are interned: holding one weakly would, counter-intuitively, keep it alive in the registry, which could leak memory.</ins></dd>
+    </dl>
+    <emu-alg>
+      1. If _v_ is an Object<ins> and IsComposite(_v_) is *false*</ins>, return *true*.
+      1. If _v_ is a Symbol and KeyForSymbol(_v_) is *undefined*, return *true*.
+      1. Return *false*.
+    </emu-alg>
+    <emu-note>
+      <p>Because WeakMap, WeakSet, WeakRef, and FinalizationRegistry all gate their arguments through CanBeHeldWeakly, this single change causes each of them to reject composite objects with a *TypeError*.</p>
+    </emu-note>
+  </emu-clause>
 </emu-clause>
