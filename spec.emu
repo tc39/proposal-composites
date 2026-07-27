@@ -157,10 +157,11 @@ contributors: Ashley Claymore
     </dl>
     <emu-alg>
       1. If _value_ is *-0*<sub>𝔽</sub>, return *+0*<sub>𝔽</sub>.
+      1. If _value_ is *NaN*, return an implementation chosen *NaN* value. An implementation must return the same *NaN* value for every *NaN* argument, so that all *NaN* values returned from this operations are not implementation distinguishable (see <emu-xref href="#sec-numerictorawbytes">NumericToRawBytes</emu-xref>) from each other.
       1. Return _value_.
     </emu-alg>
     <emu-note>
-      <p>This specification recognizes a single *NaN* Number value, so at this level all *NaN* arguments are the same value and no normalization step is written for them. Distinct *NaN* bit patterns can nevertheless be observed through a TypedArray (see <emu-xref href="#sec-numerictorawbytes">NumericToRawBytes</emu-xref>); an implementation that preserves such bit patterns in ordinary storage must ensure that neither the identity of a composite nor the value later read back from it depends on which *NaN* bit pattern was supplied: it must canonicalize *NaN*.</p>
+      <p>This specification recognizes a single *NaN* value, so this step is observable only where an implementation preserves distinct *NaN* bit patterns (see <emu-xref href="#sec-numerictorawbytes">NumericToRawBytes</emu-xref>). Without it, comparing the bytes of a returned composite's *NaN* against those supplied could reveal whether the composite was newly created or already interned, exposing information about the internal registry; canonicalizing *NaN* keeps that status private.</p>
     </emu-note>
   </emu-clause>
 
