@@ -1,5 +1,5 @@
 import { assert } from "./internal/utils.ts";
-import { ownKeys, apply, freeze, sort, NaN, getOwnPropertyDescriptor } from "./internal/originals.ts";
+import { ownKeys, apply, freeze, sort, NaN, getOwnPropertyDescriptor, is } from "./internal/originals.ts";
 import { __Composite__, objectIsComposite, setHash } from "./internal/composite-class.ts";
 import { MurmurHashStream } from "./internal/murmur.ts";
 import { KEY, updateHasher } from "./internal/hash.ts";
@@ -43,14 +43,22 @@ function byKey(a: Entry, b: Entry): number {
     return a.k < b.k ? -1 : a.k > b.k ? 1 : 0;
 }
 
-export function Composite(arg: object): Composite {
+export interface CompositeOptions {
+    preserveNegativeZero?: boolean;
+}
+
+export function Composite(arg: object, options?: CompositeOptions): Composite {
     if (new.target) {
         throw new TypeError("Composite should not be constructed with 'new'");
     }
     if (typeof arg !== "object" || arg === null) {
         throw new TypeError("Composite should be constructed with an object");
     }
+    if (isComposite(arg)) {
+        return arg;
+    }
 
+    const preserveNegativeZero = Boolean(options?.preserveNegativeZero ?? false);
     const argKeys = ownKeys(arg);
     const entries: Entry[] = [];
     for (let i = 0; i < argKeys.length; i++) {
@@ -63,7 +71,7 @@ export function Composite(arg: object): Composite {
         let v = (arg as any)[k];
         if (typeof v === "number") {
             // Normalize -0 and NaN
-            if (v === 0) v = 0;
+            if (v === 0 && !preserveNegativeZero) v = 0;
             if (v !== v) v = NaN;
         }
         entries[entries.length] = { k, v };
@@ -134,12 +142,7 @@ function compositesStructurallyEqual(a: Composite, b: Composite, bKeys: readonly
         const k = aKeys[i];
         const aV = (a as any)[k];
         const bV = (b as any)[k];
-        if (aV !== bV) {
-            // Extra checks in case both values were NaN:
-            if (aV === aV || bV === bV) {
-                return false;
-            }
-        }
+        if (!is(aV, bV)) return false;
     }
 
     return true;
