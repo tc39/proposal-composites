@@ -77,10 +77,15 @@ contributors: Ashley Claymore
     </ul>
 
     <emu-clause id="sec-composite-function-arg">
-      <h1>Composite ( _arg_ )</h1>
+      <h1>Composite ( _arg_ [ , _options_ ] )</h1>
       <p>This function performs the following steps when called:</p>
       <emu-alg>
         1. If _arg_ is not an Object, throw a *TypeError* exception.
+        1. If _arg_ is a composite object, return _arg_.
+        1. Let _preserveNegativeZero_ be *false*.
+        1. If _options_ is not *undefined*, then
+          1. Let _preserveNegativeZeroOption_ be ? Get(_options_, "preserveNegativeZero").
+          1. Set _preserveNegativeZero_ to ToBoolean(_preserveNegativeZeroOption_).
         1. Let _entries_ be a new empty List.
         1. Let _keys_ be ? _arg_.[[OwnPropertyKeys]]().
         1. For each element _key_ of _keys_, do
@@ -88,7 +93,7 @@ contributors: Ashley Claymore
           1. If _desc_ is not *undefined* and _desc_.[[Enumerable]] is *true*, then
             1. If _key_ is a Symbol, throw a *TypeError* exception.
             1. Let _value_ be ? Get(_arg_, _key_).
-            1. Set _value_ to CanonicalizeCompositeValue(_value_).
+            1. Set _value_ to CanonicalizeCompositeValue(_value_, _preserveNegativeZero_).
             1. Append the Composite Entry Record { [[Key]]: _key_, [[Value]]: _value_ } to _entries_.
         1. Return FindOrCreateComposite(_entries_).
       </emu-alg>
@@ -99,7 +104,10 @@ contributors: Ashley Claymore
         <p>Only own enumerable properties of _arg_ contribute to the composite; inherited and non-enumerable properties are ignored. An own enumerable Symbol-keyed property throws a *TypeError*; a non-enumerable one is ignored.</p>
       </emu-note>
       <emu-note>
-        <p>If _arg_ is itself a composite object, the result is a composite object with the same key/value pairs, which by interning is _arg_ itself.</p>
+        <p>If _arg_ is itself a composite object, the result is a composite object with the same key/value pairs, which by interning is _arg_ itself. The _options_ argument does not change the result.</p>
+      </emu-note>
+      <emu-note>
+        <p>By default, the Composite function normalizes *-0*<sub>𝔽</sub> to *+0*<sub>𝔽</sub>. If the _options_ object provides a truthy *preserveNegativeZero* property, then *-0*<sub>𝔽</sub> is preserved instead.</p>
       </emu-note>
     </emu-clause>
   </emu-clause>
@@ -149,19 +157,20 @@ contributors: Ashley Claymore
     <h1>
       CanonicalizeCompositeValue (
         _value_: an ECMAScript language value,
+        _preserveNegativeZero_: a Boolean,
       ): an ECMAScript language value
     </h1>
     <dl class="header">
       <dt>description</dt>
-      <dd>It returns a canonical representative of _value_, chosen so that any two values that SameValueZero treats as equal have the same representative.</dd>
+      <dd>It returns a canonical representative of _value_.</dd>
     </dl>
     <emu-alg>
-      1. If _value_ is *-0*<sub>𝔽</sub>, return *+0*<sub>𝔽</sub>.
+      1. If _value_ is *-0*<sub>𝔽</sub> and _preserveNegativeZero_ is *false*, return *+0*<sub>𝔽</sub>.
       1. If _value_ is *NaN*, return an implementation chosen *NaN* value. An implementation must return the same *NaN* value for every *NaN* argument, so that all *NaN* values returned from this operations are not implementation distinguishable (see <emu-xref href="#sec-numerictorawbytes">NumericToRawBytes</emu-xref>) from each other.
       1. Return _value_.
     </emu-alg>
     <emu-note>
-      <p>This specification recognizes a single *NaN* value, so this step is observable only where an implementation preserves distinct *NaN* bit patterns (see <emu-xref href="#sec-numerictorawbytes">NumericToRawBytes</emu-xref>). Without it, comparing the bytes of a returned composite's *NaN* against those supplied could reveal whether the composite was newly created or already interned, exposing information about the internal registry; canonicalizing *NaN* keeps that status private.</p>
+      <p>This specification recognizes a single *NaN* value, so step two is observable only where an implementation preserves distinct *NaN* bit patterns (see <emu-xref href="#sec-numerictorawbytes">NumericToRawBytes</emu-xref>). Without this step, comparing the bytes of a returned composite's *NaN* against those supplied could reveal whether the composite was newly created or already interned, exposing information about the internal registry; canonicalizing *NaN* keeps that status private.</p>
     </emu-note>
   </emu-clause>
 
@@ -270,9 +279,6 @@ contributors: Ashley Claymore
         1. Set _i_ to _i_ + 1.
       1. Return *true*.
     </emu-alg>
-    <emu-note>
-      <p>Both _c_'s values and _sortedEntries_ are already canonicalized, so SameValue and SameValueZero coincide here.</p>
-    </emu-note>
   </emu-clause>
 
   <emu-clause id="sec-composite-registry">

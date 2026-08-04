@@ -3,7 +3,7 @@ export const Number = globalThis.Number;
 export const { NaN } = Number;
 export const { imul } = Math;
 export const { apply, ownKeys, construct } = Reflect;
-export const { freeze, setPrototypeOf, getOwnPropertyDescriptor } = Object;
+export const { freeze, setPrototypeOf, getOwnPropertyDescriptor, is } = Object;
 export const { sort } = Array.prototype;
 export const strCharCodeAt = call.bind(String.prototype.charCodeAt) as (s: string, i: number) => number;
 export const Float64Array = globalThis.Float64Array;

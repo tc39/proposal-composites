@@ -252,3 +252,29 @@ await test("equal composites are the same object", () => {
     const c2 = Composite({ a: true, b: true });
     assert(c1 === c2, "should be same object");
 });
+
+await test("preserveNegativeZero - should apply preserving negative Zero", () => {
+    const cZero = Composite({ v: 0 }, { preserveNegativeZero: true });
+    const cNegZero = Composite({ v: -0 }, { preserveNegativeZero: true });
+    assert(cZero !== cNegZero, "should not be the same object");
+    const zero = (cZero as any).v;
+    const negZero = (cNegZero as any).v;
+    assert(Object.is(zero, 0), "positive zero preserved");
+    assert(Object.is(negZero, -0), "negative zero preserved");
+});
+
+await test("preserveNegativeZero - supplying option can be a noop", () => {
+    const c1 = Composite({ v: 0 }, { preserveNegativeZero: true });
+    const c2 = Composite({ v: 0 }, { preserveNegativeZero: false });
+    assert(c1 === c2, "should be same object");
+});
+
+await test("preserveNegativeZero - option does not impact an existing composite", () => {
+    const cNegZero = Composite({ v: -0 }, { preserveNegativeZero: true });
+    const copy1 = Composite(cNegZero, { preserveNegativeZero: true });
+    const copy2 = Composite(cNegZero, { preserveNegativeZero: false });
+    const copy3 = Composite(cNegZero);
+    assert(cNegZero === copy1, "`{ preserveNegativeZero: true }` still returns copy");
+    assert(cNegZero === copy2, "`{ preserveNegativeZero: false }` still returns copy");
+    assert(cNegZero === copy3, "`no options still returns copy");
+});

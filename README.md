@@ -328,13 +328,29 @@ new Set([zero, negZero]).size === 1;
 
 Normalization also keeps the stored value deterministic. `SameValueZero` already treats `0` and `-0` as equal, so `Composite({ v: 0 })` and `Composite({ v: -0 })` intern to the same object either way. Without normalization the value read back from `.v` would depend on which of the two calls happened to create that object first. Normalizing to `0` removes that ordering dependency.
 
-If a consumer has a use case for preserving `-0` it could be enabled with an options bag, leaving normalization as the default:
+#### `preserveNegativeZero:true`
+
+If an application has a use case for preserving `-0` they can opt-in to this via the `preserveNegativeZero` option:
 
 ```js
-const zero = Composite({ v: 0 });
 const realNegZero = Composite({ v: -0 }, { preserveNegativeZero: true });
+const zero = Composite({ v: 0 });
 Object.is(realNegZero.v, -0); // true
-realNegZero === zero; // false
+realNegZero === zero; // false - different composite objects
+```
+
+Once a composite has been created with this option enabled its values are preserved if passed back into the `Composite` function:
+
+```js
+Object.is(Composite(realNegZero).v, -0); // true
+```
+
+This means that the following will always hold:
+
+```js
+if (Composite.isComposite(v)) {
+  assert(Composite(v) === v);
+}
 ```
 
 ### Why is `NaN` considered equal?
