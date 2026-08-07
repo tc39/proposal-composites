@@ -8,6 +8,8 @@ Stage: [1](https://tc39.es/process-document/)
 
 Champion(s): [Ashley Claymore](https://github.com/acutmore)
 
+Draft Spec: https://tc39.es/proposal-composites
+
 ## The issue
 
 Right now `Map` and `Set` always use [SameValueZero](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-samevaluezero) to answer "Is this value in this collection?".
