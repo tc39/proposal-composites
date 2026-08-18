@@ -49,8 +49,8 @@ contributors: Ashley Claymore
       </thead>
       <tr>
         <td>%Composite%</td>
-        <td>`Composite`</td>
-        <td>The Composite function (<emu-xref href="#sec-composite-function"></emu-xref>)</td>
+        <td>*"Composite"*</td>
+        <td>The `Composite` function (<emu-xref href="#sec-composite-function"></emu-xref>)</td>
       </tr>
     </table>
   </emu-table>
@@ -84,7 +84,7 @@ contributors: Ashley Claymore
         1. If _arg_ is a composite object, return _arg_.
         1. Let _preserveNegativeZero_ be *false*.
         1. If _options_ is not *undefined*, then
-          1. Let _preserveNegativeZeroOption_ be ? Get(_options_, "preserveNegativeZero").
+          1. Let _preserveNegativeZeroOption_ be ? Get(_options_, *"preserveNegativeZero"*).
           1. Set _preserveNegativeZero_ to ToBoolean(_preserveNegativeZeroOption_).
         1. Let _entries_ be a new empty List.
         1. Let _keys_ be ? _arg_.[[OwnPropertyKeys]]().
@@ -239,15 +239,15 @@ contributors: Ashley Claymore
     <emu-alg>
       1. Let _sortedEntries_ be CompositeCanonicalOrder(_entries_).
       1. Let _registry_ be the surrounding agent's Composite Registry.
-      1. For each composite object _c_ of _registry_, do
-        1. If CompositeMatch(_c_, _sortedEntries_) is *true*, return _c_.
-      1. Let _c_ be OrdinaryObjectCreate(*null*).
+      1. For each composite object _composite_ of _registry_, do
+        1. If CompositeMatch(_composite_, _sortedEntries_) is *true*, return _composite_.
+      1. Let _composite_ be OrdinaryObjectCreate(*null*).
       1. For each Composite Entry Record _entry_ of _sortedEntries_, do
         1. Let _desc_ be the PropertyDescriptor { [[Value]]: _entry_.[[Value]], [[Writable]]: *false*, [[Enumerable]]: *true*, [[Configurable]]: *false* }.
-        1. Perform ! DefinePropertyOrThrow(_c_, _entry_.[[Key]], _desc_).
-      1. Set _c_.[[Extensible]] to *false*.
-      1. Add _c_ to _registry_.
-      1. Return _c_.
+        1. Perform ! DefinePropertyOrThrow(_composite_, _entry_.[[Key]], _desc_).
+      1. Set _composite_.[[Extensible]] to *false*.
+      1. Add _composite_ to _registry_.
+      1. Return _composite_.
     </emu-alg>
     <emu-note>
       <p>The search over _registry_ is only intended to describe the required observable result of interning; it is not intended to be a viable implementation model. Interning must be implemented using either hash tables or other mechanisms that, on average, provide interning times that are sublinear on the number of composite objects in the registry.</p>
@@ -257,24 +257,24 @@ contributors: Ashley Claymore
   <emu-clause id="sec-compositematch" type="abstract operation">
     <h1>
       CompositeMatch (
-        _c_: a composite object,
+        _composite_: a composite object,
         _sortedEntries_: a List of Composite Entry Records,
       ): a Boolean
     </h1>
     <dl class="header">
       <dt>description</dt>
-      <dd>It returns *true* if the existing composite object _c_ has exactly the key/value pairs described by _sortedEntries_.</dd>
+      <dd>It returns *true* if the existing composite object _composite_ has exactly the key/value pairs described by _sortedEntries_.</dd>
     </dl>
     <emu-alg>
       1. Assert: _sortedEntries_ is in the canonical key order produced by CompositeCanonicalOrder (<emu-xref href="#sec-compositecanonicalorder"></emu-xref>).
-      1. Let _keys_ be ! _c_.[[OwnPropertyKeys]]().
+      1. Let _keys_ be ! _composite_.[[OwnPropertyKeys]]().
       1. Assert: _keys_ is in the canonical key order produced by CompositeCanonicalOrder (<emu-xref href="#sec-compositecanonicalorder"></emu-xref>).
       1. If the number of elements in _keys_ is not equal to the number of elements in _sortedEntries_, return *false*.
       1. Let _i_ be 0.
       1. For each Composite Entry Record _entry_ of _sortedEntries_, do
         1. Let _key_ be _keys_[_i_].
         1. If _entry_.[[Key]] is not _key_, return *false*.
-        1. Let _current_ be ! Get(_c_, _key_).
+        1. Let _current_ be ! Get(_composite_, _key_).
         1. If SameValue(_current_, _entry_.[[Value]]) is *false*, return *false*.
         1. Set _i_ to _i_ + 1.
       1. Return *true*.
@@ -299,16 +299,16 @@ contributors: Ashley Claymore
   <emu-clause id="sec-canbeheldweakly" type="abstract operation">
     <h1>
       CanBeHeldWeakly (
-        _v_: an ECMAScript language value,
+        _arg_: an ECMAScript language value,
       ): a Boolean
     </h1>
     <dl class="header">
       <dt>description</dt>
-      <dd>It returns *true* if and only if _v_ is suitable to be used as a key of a WeakMap, added to a WeakSet, used as the target or unregister token of a FinalizationRegistry, or held by a WeakRef.<ins> Composite objects are excluded because they are interned: holding one weakly would, counter-intuitively, keep it alive in the registry, which could leak memory.</ins></dd>
+      <dd>It returns *true* if and only if _arg_ is suitable to be used as a key of a WeakMap, added to a WeakSet, used as the target or unregister token of a FinalizationRegistry, or held by a WeakRef.<ins> Composite objects are excluded because they are interned: holding one weakly would, counter-intuitively, keep it alive in the registry, which could leak memory.</ins></dd>
     </dl>
     <emu-alg>
-      1. If _v_ is an Object<ins> and IsComposite(_v_) is *false*</ins>, return *true*.
-      1. If _v_ is a Symbol and KeyForSymbol(_v_) is *undefined*, return *true*.
+      1. If _arg_ is an Object<ins> and IsComposite(_arg_) is *false*</ins>, return *true*.
+      1. If _arg_ is a Symbol and KeyForSymbol(_arg_) is *undefined*, return *true*.
       1. Return *false*.
     </emu-alg>
     <emu-note>
