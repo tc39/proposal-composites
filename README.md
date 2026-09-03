@@ -495,12 +495,14 @@ That proposal:
 - `compositeKey` takes an ordered list, not named properties
 - The returned key is opaque with no properties
 - At least one of the values must be an object
+- Key can be used in `WeakMap` (and other weak APIs)
 
 This proposal:
 
 - Keys are made of named properties
 - The returned key exposes the data
 - No restriction on what the values must be
+- Key can not be used in a `WeakMap` (or any weak API)
 
 ### How does this compare to [proposal-record-tuple](https://github.com/tc39/proposal-record-tuple)?
 
@@ -508,8 +510,10 @@ That proposal:
 
 - Records are new primitives with a custom `typeof`
 - Records can only contain primitives (deeply immutable)
+- Had syntax `#{ ... }`
 
 This proposal:
 
 - Composites are objects
 - Composites can contain any value (shallowly immutable)
+- Does not introduce syntax
