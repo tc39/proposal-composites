@@ -1,4 +1,3 @@
-import { assert } from "./internal/utils.ts";
 import { ownKeys, apply, freeze, sort, NaN, getOwnPropertyDescriptor, is } from "./internal/originals.ts";
 import { __Composite__, objectIsComposite, setHash } from "./internal/composite-class.ts";
 import { MurmurHashStream } from "./internal/murmur.ts";
@@ -7,7 +6,15 @@ import { SafeMap, SafeWeakRef } from "./internal/safe.ts";
 
 export type Composite = __Composite__;
 
-const composites = new SafeMap<number, Array<SafeWeakRef<Composite>>>();
+class CompositeRef extends SafeWeakRef<Composite> {
+    readonly size: number;
+    constructor(value: Composite, size: number) {
+        super(value);
+        this.size = size;
+    }
+}
+
+const composites = new SafeMap<number, Array<CompositeRef>>();
 const fr = new FinalizationRegistry((hash: number) => {
     let bucket = composites.safeGet(hash);
     if (bucket) {
@@ -29,13 +36,6 @@ const fr = new FinalizationRegistry((hash: number) => {
     }
 });
 const register = fr.register.bind(fr);
-
-function isStringArray(a: unknown[]): a is string[] {
-    for (let i = 0; i < a.length; i++) {
-        if (typeof a[i] !== "string") return false;
-    }
-    return true;
-}
 
 type Entry = { readonly k: string; readonly v: unknown };
 
@@ -79,7 +79,6 @@ export function Composite(arg: object, options?: CompositeOptions): Composite {
 
     apply(sort, entries, [byKey]);
 
-    const c = new __Composite__();
     const hasher = new MurmurHashStream();
     for (let i = 0; i < entries.length; i++) {
         const k = entries[i].k;
@@ -87,34 +86,37 @@ export function Composite(arg: object, options?: CompositeOptions): Composite {
         hasher.update(KEY);
         hasher.update(k);
         updateHasher(hasher, v);
-        (c as any)[k] = v;
     }
 
     let hash = hasher.digest();
     let cs = composites.safeGet(hash);
-    if (!cs) {
-        cs = [new SafeWeakRef(c)];
-        composites.safeSet(hash, cs);
-    } else {
-        let emptyIndex = -1;
-        let compKeys;
+    let emptyIndex = -1;
+    if (cs) {
         for (let i = 0; i < cs.length; i++) {
-            let ref = cs[i]?.safeDeref();
+            const compositeRef = cs[i];
+            let ref = compositeRef?.safeDeref();
             if (ref !== void 0) {
-                compKeys ??= ownKeys(c);
-                DEV: assert(isStringArray(compKeys));
-                if (compositesStructurallyEqual(ref, c, compKeys)) {
+                if (compositeRef.size === entries.length && compositeMatchesEntries(ref, entries)) {
                     return ref;
                 }
             } else if (emptyIndex === -1) {
                 emptyIndex = i;
             }
         }
-        if (emptyIndex === -1) {
-            cs[cs.length] = new SafeWeakRef(c);
-        } else {
-            cs[emptyIndex] = new SafeWeakRef(c);
-        }
+    }
+
+    const c = new __Composite__();
+    for (let i = 0; i < entries.length; i++) {
+        (c as any)[entries[i].k] = entries[i].v;
+    }
+
+    if (!cs) {
+        cs = [new CompositeRef(c, entries.length)];
+        composites.safeSet(hash, cs);
+    } else if (emptyIndex === -1) {
+        cs[cs.length] = new CompositeRef(c, entries.length);
+    } else {
+        cs[emptyIndex] = new CompositeRef(c, entries.length);
     }
 
     register(c, hash);
@@ -128,21 +130,11 @@ export function isComposite(arg: unknown): arg is Composite {
 }
 Composite.isComposite = isComposite;
 
-function compositesStructurallyEqual(a: Composite, b: Composite, bKeys: readonly string[]): boolean {
-    const aKeys = ownKeys(a);
-    if (aKeys.length !== bKeys.length) {
-        return false;
-    }
-    for (let i = 0; i < aKeys.length; i++) {
-        if (aKeys[i] !== bKeys[i]) {
-            return false;
-        }
-    }
-    for (let i = 0; i < aKeys.length; i++) {
-        const k = aKeys[i];
-        const aV = (a as any)[k];
-        const bV = (b as any)[k];
-        if (!is(aV, bV)) return false;
+function compositeMatchesEntries(a: Composite, entries: readonly Entry[]): boolean {
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const current = (a as any)[entry.k];
+        if (!is(current, entry.v) || (current === undefined && !(entry.k in a))) return false;
     }
 
     return true;
