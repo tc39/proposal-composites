@@ -41,21 +41,49 @@ export class MurmurHashStream implements Hasher {
         }
     }
 
+    private _writeUint32(word: number): void {
+        if (this.carryBytes === 0) {
+            this._mix(word >>> 0);
+            this.length += 4;
+            return;
+        }
+        if (this.carryBytes === 2) {
+            this._mix((this.carry | (word << 16)) >>> 0);
+            this.carry = word >>> 16;
+            this.length += 4;
+            return;
+        }
+        this._writeByte(word & 0xff);
+        this._writeByte((word >>> 8) & 0xff);
+        this._writeByte((word >>> 16) & 0xff);
+        this._writeByte((word >>> 24) & 0xff);
+    }
+
     update(chunk: string | number | bigint): void {
         switch (typeof chunk) {
             case "string":
                 this.update(STRING_MARKER);
-                for (let i = 0; i < chunk.length; i++) {
+                let i = 0;
+                if (this.carryBytes === 2 && i < chunk.length) {
+                    const code = strCharCodeAt(chunk, i);
+                    this._writeByte(code & 0xff);
+                    this._writeByte((code >>> 8) & 0xff);
+                    i++;
+                }
+                if (this.carryBytes === 0) {
+                    for (; i + 1 < chunk.length; i += 2) {
+                        this._mix((strCharCodeAt(chunk, i) | (strCharCodeAt(chunk, i + 1) << 16)) >>> 0);
+                        this.length += 4;
+                    }
+                }
+                for (; i < chunk.length; i++) {
                     const code = strCharCodeAt(chunk, i);
                     this._writeByte(code & 0xff);
                     this._writeByte((code >>> 8) & 0xff);
                 }
                 return;
             case "number":
-                this._writeByte(chunk & 0xff);
-                this._writeByte((chunk >>> 8) & 0xff);
-                this._writeByte((chunk >>> 16) & 0xff);
-                this._writeByte((chunk >>> 24) & 0xff);
+                this._writeUint32(chunk);
                 return;
             case "bigint": {
                 let value = chunk;

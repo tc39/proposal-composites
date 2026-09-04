@@ -79,7 +79,6 @@ export function Composite(arg: object, options?: CompositeOptions): Composite {
 
     apply(sort, entries, [byKey]);
 
-    const c = new __Composite__();
     const hasher = new MurmurHashStream();
     for (let i = 0; i < entries.length; i++) {
         const k = entries[i].k;
@@ -87,34 +86,36 @@ export function Composite(arg: object, options?: CompositeOptions): Composite {
         hasher.update(KEY);
         hasher.update(k);
         updateHasher(hasher, v);
-        (c as any)[k] = v;
     }
 
     let hash = hasher.digest();
     let cs = composites.safeGet(hash);
-    if (!cs) {
-        cs = [new SafeWeakRef(c)];
-        composites.safeSet(hash, cs);
-    } else {
-        let emptyIndex = -1;
-        let compKeys;
+    let emptyIndex = -1;
+    if (cs) {
         for (let i = 0; i < cs.length; i++) {
             let ref = cs[i]?.safeDeref();
             if (ref !== void 0) {
-                compKeys ??= ownKeys(c);
-                DEV: assert(isStringArray(compKeys));
-                if (compositesStructurallyEqual(ref, c, compKeys)) {
+                if (compositeMatchesEntries(ref, entries)) {
                     return ref;
                 }
             } else if (emptyIndex === -1) {
                 emptyIndex = i;
             }
         }
-        if (emptyIndex === -1) {
-            cs[cs.length] = new SafeWeakRef(c);
-        } else {
-            cs[emptyIndex] = new SafeWeakRef(c);
-        }
+    }
+
+    const c = new __Composite__();
+    for (let i = 0; i < entries.length; i++) {
+        (c as any)[entries[i].k] = entries[i].v;
+    }
+
+    if (!cs) {
+        cs = [new SafeWeakRef(c)];
+        composites.safeSet(hash, cs);
+    } else if (emptyIndex === -1) {
+        cs[cs.length] = new SafeWeakRef(c);
+    } else {
+        cs[emptyIndex] = new SafeWeakRef(c);
     }
 
     register(c, hash);
@@ -128,21 +129,15 @@ export function isComposite(arg: unknown): arg is Composite {
 }
 Composite.isComposite = isComposite;
 
-function compositesStructurallyEqual(a: Composite, b: Composite, bKeys: readonly string[]): boolean {
+function compositeMatchesEntries(a: Composite, entries: readonly Entry[]): boolean {
     const aKeys = ownKeys(a);
-    if (aKeys.length !== bKeys.length) {
+    DEV: assert(isStringArray(aKeys));
+    if (aKeys.length !== entries.length) {
         return false;
     }
-    for (let i = 0; i < aKeys.length; i++) {
-        if (aKeys[i] !== bKeys[i]) {
-            return false;
-        }
-    }
-    for (let i = 0; i < aKeys.length; i++) {
-        const k = aKeys[i];
-        const aV = (a as any)[k];
-        const bV = (b as any)[k];
-        if (!is(aV, bV)) return false;
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        if (!(entry.k in a) || !is((a as any)[entry.k], entry.v)) return false;
     }
 
     return true;

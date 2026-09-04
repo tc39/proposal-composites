@@ -8,5 +8,5 @@
         "verbatimModuleSyntax": true,
         "noEmit": true
     },
-    "include": ["polyfill/**/*.ts"]
+    "include": ["polyfill/**/*.ts", "benchmarks/**/*.ts"]
 }

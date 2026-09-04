@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "test": "node --test --experimental-strip-types",
+        "benchmark": "node --experimental-strip-types benchmarks/ponyfill.ts",
         "build-polyfill": "npx --yes esbuild@0.25.9 ./polyfill/index.ts --bundle --global-name=compositePolyfill --outfile=./polyfill/composite.js --drop-labels=DEV",
         "format": "prettier --write .",
         "start": "npm run build-loose -- --watch",
