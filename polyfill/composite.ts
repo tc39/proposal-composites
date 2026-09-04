@@ -133,7 +133,8 @@ Composite.isComposite = isComposite;
 function compositeMatchesEntries(a: Composite, entries: readonly Entry[]): boolean {
     for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
-        if (!(entry.k in a) || !is((a as any)[entry.k], entry.v)) return false;
+        const current = (a as any)[entry.k];
+        if (!is(current, entry.v) || (current === undefined && !(entry.k in a))) return false;
     }
 
     return true;
