@@ -1,4 +1,3 @@
-import { assert } from "./internal/utils.ts";
 import { ownKeys, apply, freeze, sort, NaN, getOwnPropertyDescriptor, is } from "./internal/originals.ts";
 import { __Composite__, objectIsComposite, setHash } from "./internal/composite-class.ts";
 import { MurmurHashStream } from "./internal/murmur.ts";
@@ -7,7 +6,15 @@ import { SafeMap, SafeWeakRef } from "./internal/safe.ts";
 
 export type Composite = __Composite__;
 
-const composites = new SafeMap<number, Array<SafeWeakRef<Composite>>>();
+class CompositeRef extends SafeWeakRef<Composite> {
+    readonly size: number;
+    constructor(value: Composite, size: number) {
+        super(value);
+        this.size = size;
+    }
+}
+
+const composites = new SafeMap<number, Array<CompositeRef>>();
 const fr = new FinalizationRegistry((hash: number) => {
     let bucket = composites.safeGet(hash);
     if (bucket) {
@@ -29,13 +36,6 @@ const fr = new FinalizationRegistry((hash: number) => {
     }
 });
 const register = fr.register.bind(fr);
-
-function isStringArray(a: unknown[]): a is string[] {
-    for (let i = 0; i < a.length; i++) {
-        if (typeof a[i] !== "string") return false;
-    }
-    return true;
-}
 
 type Entry = { readonly k: string; readonly v: unknown };
 
@@ -93,9 +93,10 @@ export function Composite(arg: object, options?: CompositeOptions): Composite {
     let emptyIndex = -1;
     if (cs) {
         for (let i = 0; i < cs.length; i++) {
-            let ref = cs[i]?.safeDeref();
+            const compositeRef = cs[i];
+            let ref = compositeRef?.safeDeref();
             if (ref !== void 0) {
-                if (compositeMatchesEntries(ref, entries)) {
+                if (compositeRef.size === entries.length && compositeMatchesEntries(ref, entries)) {
                     return ref;
                 }
             } else if (emptyIndex === -1) {
@@ -110,12 +111,12 @@ export function Composite(arg: object, options?: CompositeOptions): Composite {
     }
 
     if (!cs) {
-        cs = [new SafeWeakRef(c)];
+        cs = [new CompositeRef(c, entries.length)];
         composites.safeSet(hash, cs);
     } else if (emptyIndex === -1) {
-        cs[cs.length] = new SafeWeakRef(c);
+        cs[cs.length] = new CompositeRef(c, entries.length);
     } else {
-        cs[emptyIndex] = new SafeWeakRef(c);
+        cs[emptyIndex] = new CompositeRef(c, entries.length);
     }
 
     register(c, hash);
@@ -130,11 +131,6 @@ export function isComposite(arg: unknown): arg is Composite {
 Composite.isComposite = isComposite;
 
 function compositeMatchesEntries(a: Composite, entries: readonly Entry[]): boolean {
-    const aKeys = ownKeys(a);
-    DEV: assert(isStringArray(aKeys));
-    if (aKeys.length !== entries.length) {
-        return false;
-    }
     for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
         if (!(entry.k in a) || !is((a as any)[entry.k], entry.v)) return false;
