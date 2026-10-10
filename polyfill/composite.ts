@@ -54,11 +54,21 @@ export function Composite(arg: object, options?: CompositeOptions): Composite {
     if (typeof arg !== "object" || arg === null) {
         throw new TypeError("Composite should be constructed with an object");
     }
-    if (isComposite(arg)) {
-        return arg;
+    const argIsComposite = isComposite(arg);
+    let preserveNegativeZero = argIsComposite;
+    if (options !== undefined) {
+        if ((typeof options !== "object" && typeof options !== "function") || options === null) {
+            throw new TypeError("Composite options should be an object");
+        }
+        const preserveNegativeZeroOption = options.preserveNegativeZero;
+        if (preserveNegativeZeroOption !== undefined) {
+            preserveNegativeZero = Boolean(preserveNegativeZeroOption);
+        }
     }
 
-    const preserveNegativeZero = Boolean(options?.preserveNegativeZero ?? false);
+    if (argIsComposite && preserveNegativeZero) {
+        return arg;
+    }
     const argKeys = ownKeys(arg);
     const entries: Entry[] = [];
     for (let i = 0; i < argKeys.length; i++) {
