@@ -4,7 +4,7 @@ Keys for Maps and Sets that represent a structured group of values.
 
 ## Status
 
-Stage: [1](https://tc39.es/process-document/)
+Stage: [2](https://tc39.es/process-document/)
 
 Champion(s): [Ashley Claymore](https://github.com/acutmore)
 
