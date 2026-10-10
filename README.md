@@ -202,6 +202,7 @@ Object.is(c.zero, 0);  // true
 
 Given two calls `Composite(a)` and `Composite(b)`. The 2nd call will return the same object as the first if:
 
+- both calls are to the same `Composite` function (see [Do composites work across realms?](#do-composites-work-across-realms))
 - `a` and `b` are both objects
   - otherwise the creation would have failed
 - `a` and `b` must have the same number of enumerable string keys
@@ -210,6 +211,7 @@ Given two calls `Composite(a)` and `Composite(b)`. The 2nd call will return the 
     - otherwise the creation would have failed
   - that key must also have been in `a` (the order does not matter)
   - the value of that key must be equal to the value of that key in `a` according to [`SameValueZero`](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-samevaluezero)
+  - if either value is `-0`, both calls must have preserved `-0` (see [`preserveNegativeZero:true`](#preservenegativezerotrue))
 
 
 #### Equal composites:
@@ -281,6 +283,8 @@ In Clojure maps have value-based equality that does not depend on key order:
 
 A proxy with a composite as its target is not considered a composite.
 
+The check is not realm specific: it returns `true` for a composite created by any realm, not only the realm it is called from (see [Do composites work across realms?](#do-composites-work-across-realms)).
+
 ### Performance expectations
 
 Once created, the cost of comparing two composites is constant time; the runtime only needs to compare their memory addresses.
@@ -347,7 +351,15 @@ Once a composite has been created with this option enabled its values are preser
 Object.is(Composite(realNegZero).v, -0); // true
 ```
 
-This means that the following will always hold:
+The option defaults to `true` only when the argument is already a composite, because a composite can only contain `-0` if it was created with the option enabled. The original request to preserve is respected.
+
+Passing `false` explicitly opts out, giving the normalized composite instead:
+
+```js
+Composite(realNegZero, { preserveNegativeZero: false }) === zero; // true
+```
+
+This means that the following will always hold for a composite created by the same realm:
 
 ```js
 if (Composite.isComposite(v)) {
@@ -462,15 +474,34 @@ Syntax would be a separate follow-on proposal - after the Composites API has had
 
 Yes ["./polyfill"](./polyfill/).
 
-Though, like all JS polyfills, it only has local internal state. So two separate polyfills would not create composites that are equal to each other.
+Though, like all JS polyfills, it only has local internal state. So two separate polyfills would not create composites that are equal to each other, and are unlikely to recognize a composite created by a separate instance of the polyfill.
 
 ### Do composites work across realms?
 
-Yes. Natively, composites are interned per-agent and are equal across realms (for example across same-origin iframes), in the same way that symbols obtained from `Symbol.for` are shared across realms.
+Composites can be passed between realms (for example between same-origin iframes) and keep working there, but they are **not** interned across realms.
 
-A composite returned from one realm's `Composite` function does not bear any relationship to the realm that created it - its prototype is `null`.
+Interning is per realm: each realm has its own registry, so two realms never return the same composite, even for the same named values. This is unlike symbols obtained from `Symbol.for`, which come from a registry shared by all realms of an agent.
 
-As noted above, separate polyfills each have their own local interning state and so do not produce composites that are equal to each other, so would not be equal across realms unless those realms shared the same polyfill instance.
+```js
+const foreignGlobalThis = iframe.contentWindow; // another realm
+const foreignComposite = foreignGlobalThis.Composite({ x: 1 });
+
+Composite({ x: 1 }) !== foreignComposite; // different realms, different objects
+```
+
+If cross realm equality needs to be tested the value should be re-interned using the local function:
+
+```js
+Composite({ x: 1 }) === Composite(foreignComposite); // true
+```
+
+Re-interning is shallow, so this may need to be applied recursively when working with nested composites.
+
+_Being_ a composite on the other hand is **not** per realm. Every realm recognizes a composite created by any realm, so behaviour that depends on _being_ a composite is realm independent. This matches `Error.isError`.
+
+```js
+Composite.isComposite(foreignComposite); // true
+```
 
 ### Why implement natively in the language?
 

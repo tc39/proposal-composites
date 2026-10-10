@@ -11,7 +11,7 @@ contributors: Ashley Claymore
 
 <emu-intro id="sec-intro">
   <h1>Composites</h1>
-  <p>This proposal introduces built-in <dfn variants="composite">composites</dfn>: frozen, ordinary objects with a null prototype that are <em>interned</em>, so that two composites created from the same set of named values are the same object (identical under <emu-xref href="#sec-samevalue">SameValue</emu-xref>, and therefore under `===`).</p>
+  <p>This proposal introduces built-in <dfn variants="composite">composites</dfn>: frozen, ordinary objects with a null prototype that are <em>interned</em> within a <emu-xref href="#sec-code-realms">realm</emu-xref>, so that two composites created from the same set of named values are the same object (identical under <emu-xref href="#sec-samevalue">SameValue</emu-xref>, and therefore under `===`).</p>
   <p>Because composites are interned, they can be used as <emu-xref href="#sec-map-objects">Map</emu-xref> keys and <emu-xref href="#sec-set-objects">Set</emu-xref> values with value-based equality without any change to `Map`, `Set`, or the equality operators:</p>
   <pre><code class="javascript">
     const pos1 = Composite({ x: 1, y: 4 });
@@ -59,11 +59,11 @@ contributors: Ashley Claymore
 <emu-clause id="sec-composite-objects">
   <h1>Composite Objects</h1>
 
-  <p>A <dfn>composite object</dfn> is an ordinary object that is contained in the surrounding agent's Composite Registry (<emu-xref href="#sec-composite-registry"></emu-xref>). Composite objects are only created by FindOrCreateComposite (<emu-xref href="#sec-findorcreatecomposite"></emu-xref>), which is the only operation that adds an object to the Composite Registry. An object's status as a composite object cannot be forged: because only membership in the Composite Registry matters, an object such as a Proxy exotic object whose target is a composite object is not itself a composite object.</p>
+  <p>A <dfn>composite object</dfn> is an ordinary object with a [[Composite]] internal slot whose value is *undefined*. The only specified use of [[Composite]] is to distinguish composite objects from other objects. Composite objects are only created by FindOrCreateComposite (<emu-xref href="#sec-findorcreatecomposite"></emu-xref>), which is the only operation that creates an object with this slot. An object's status as a composite object cannot be forged: because only the presence of the internal slot matters, an object such as a Proxy exotic object whose target is a composite object is not itself a composite object.</p>
 
   <p>Every composite object has a [[Prototype]] of *null*, has [[Extensible]] set to *false*, and has only own data properties whose [[Writable]] and [[Configurable]] attributes are *false* and whose [[Enumerable]] attribute is *true*. All keys of a composite object are Strings.</p>
 
-  <p>Composite objects are interned: within an <emu-xref href="#sec-agents">agent</emu-xref>, there is at most one composite object for any given set of key/value pairs (see <emu-xref href="#sec-composite-registry"></emu-xref>). Two composite objects that would have the same key/value pairs are therefore the same object.</p>
+  <p>Composite objects are interned: within a <emu-xref href="#sec-code-realms">realm</emu-xref>, there is at most one composite object for any given set of key/value pairs (see <emu-xref href="#sec-composite-registry"></emu-xref>). Two composite objects created by the same realm that would have the same key/value pairs are therefore the same object.</p>
 
   <emu-clause id="sec-composite-function">
     <h1>The Composite Function</h1>
@@ -71,7 +71,7 @@ contributors: Ashley Claymore
     <ul>
       <li>is <dfn>%Composite%</dfn>.</li>
       <li>is the initial value of the *"Composite"* property of the global object.</li>
-      <li>returns a composite object when called as a function, creating one only if no interned composite with the same key/value pairs already exists.</li>
+      <li>returns a composite object when called as a function, creating one only if its realm has no interned composite with the same key/value pairs.</li>
       <li>does not have a [[Construct]] internal method; it cannot be used as a constructor with the `new` operator.</li>
       <li>does not have a *"prototype"* property.</li>
     </ul>
@@ -81,11 +81,12 @@ contributors: Ashley Claymore
       <p>This function performs the following steps when called:</p>
       <emu-alg>
         1. If _arg_ is not an Object, throw a *TypeError* exception.
-        1. If _arg_ is a composite object, return _arg_.
-        1. Let _preserveNegativeZero_ be *false*.
+        1. Let _preserveNegativeZero_ be IsComposite(_arg_).
         1. If _options_ is not *undefined*, then
+          1. If _options_ is not an Object, throw a *TypeError* exception.
           1. Let _preserveNegativeZeroOption_ be ? Get(_options_, *"preserveNegativeZero"*).
-          1. Set _preserveNegativeZero_ to ToBoolean(_preserveNegativeZeroOption_).
+          1. If _preserveNegativeZeroOption_ is not *undefined*, set _preserveNegativeZero_ to ToBoolean(_preserveNegativeZeroOption_).
+        1. [id="step-composite-early-return"] If _preserveNegativeZero_ is *true* and the current Realm Record's Composite Registry contains _arg_, return _arg_.
         1. Let _entries_ be a new empty List.
         1. Let _keys_ be ? _arg_.[[OwnPropertyKeys]]().
         1. For each element _key_ of _keys_, do
@@ -104,10 +105,13 @@ contributors: Ashley Claymore
         <p>Only own enumerable properties of _arg_ contribute to the composite; inherited and non-enumerable properties are ignored. An own enumerable Symbol-keyed property throws a *TypeError*; a non-enumerable one is ignored.</p>
       </emu-note>
       <emu-note>
-        <p>If _arg_ is itself a composite object, the result is a composite object with the same key/value pairs, which by interning is _arg_ itself. The _options_ argument does not change the result.</p>
+        <p>A composite object from another realm is interned like any other object, giving this realm's equivalent. Interning is shallow: composite values within _arg_ are not themselves re-interned.</p>
       </emu-note>
       <emu-note>
-        <p>By default, the Composite function normalizes *-0*<sub>𝔽</sub> to *+0*<sub>𝔽</sub>. If the _options_ object provides a truthy *preserveNegativeZero* property, then *-0*<sub>𝔽</sub> is preserved instead.</p>
+        <p>Step <emu-xref href="#step-composite-early-return"></emu-xref> is unobservable; the remaining steps would return _arg_ anyway. It is stated so that having such an optimization is explicitly compliant.</p>
+      </emu-note>
+      <emu-note>
+        <p>By default, the Composite function normalizes *-0*<sub>𝔽</sub> to *+0*<sub>𝔽</sub>, unless _arg_ is itself already a composite; in which case the default changes to preserve *-0*<sub>𝔽</sub>. The *preserveNegativeZero* property of the _options_ object allows the caller to explicitly select if *-0*<sub>𝔽</sub> should be preserved or not.</p>
       </emu-note>
     </emu-clause>
   </emu-clause>
@@ -145,11 +149,11 @@ contributors: Ashley Claymore
     </dl>
     <emu-alg>
       1. If _value_ is not an Object, return *false*.
-      1. If the surrounding agent's Composite Registry contains _value_, return *true*.
+      1. If _value_ has a [[Composite]] internal slot, return *true*.
       1. Return *false*.
     </emu-alg>
     <emu-note>
-      <p>This operation is defined in terms of searching the Composite Registry, but an implementation is free to use any faster mechanism that avoids such a search as long as the observable behaviour is equivalent.</p>
+      <p>Composite Registries are per-<emu-xref href="#sec-code-realms">realm</emu-xref> (<emu-xref href="#sec-composite-registry"></emu-xref>), but this operation is not: it returns *true* for a composite object created by any realm, not only the current one.</p>
     </emu-note>
   </emu-clause>
 
@@ -234,14 +238,14 @@ contributors: Ashley Claymore
     </h1>
     <dl class="header">
       <dt>description</dt>
-      <dd>It returns the interned composite object for the key/value pairs described by _entries_, creating it if it does not already exist. It is assumed that no two elements of _entries_ have the same [[Key]], and that each element's [[Value]] is already the result of CanonicalizeCompositeValue (<emu-xref href="#sec-canonicalizecompositevalue"></emu-xref>).</dd>
+      <dd>It returns the current Realm Record's interned composite object for the key/value pairs described by _entries_, creating it if it does not already exist. It is assumed that no two elements of _entries_ have the same [[Key]], and that each element's [[Value]] is already the result of CanonicalizeCompositeValue (<emu-xref href="#sec-canonicalizecompositevalue"></emu-xref>).</dd>
     </dl>
     <emu-alg>
       1. Let _sortedEntries_ be CompositeCanonicalOrder(_entries_).
-      1. Let _registry_ be the surrounding agent's Composite Registry.
+      1. Let _registry_ be the current Realm Record's Composite Registry.
       1. For each composite object _composite_ of _registry_, do
         1. If CompositeMatch(_composite_, _sortedEntries_) is *true*, return _composite_.
-      1. Let _composite_ be OrdinaryObjectCreate(*null*).
+      1. Let _composite_ be OrdinaryObjectCreate(*null*, « [[Composite]] »).
       1. For each Composite Entry Record _entry_ of _sortedEntries_, do
         1. Let _desc_ be the PropertyDescriptor { [[Value]]: _entry_.[[Value]], [[Writable]]: *false*, [[Enumerable]]: *true*, [[Configurable]]: *false* }.
         1. Perform ! DefinePropertyOrThrow(_composite_, _entry_.[[Key]], _desc_).
@@ -249,6 +253,9 @@ contributors: Ashley Claymore
       1. Add _composite_ to _registry_.
       1. Return _composite_.
     </emu-alg>
+    <emu-note>
+      <p>The current Realm Record is that of the `Composite` function that was called, not that of its caller.</p>
+    </emu-note>
     <emu-note>
       <p>The search over _registry_ is only intended to describe the required observable result of interning; it is not intended to be a viable implementation model. Interning must be implemented using either hash tables or other mechanisms that, on average, provide interning times that are sublinear on the number of composite objects in the registry.</p>
     </emu-note>
@@ -283,12 +290,12 @@ contributors: Ashley Claymore
 
   <emu-clause id="sec-composite-registry">
     <h1>The Composite Registry</h1>
-    <p>Each <emu-xref href="#sec-agents">agent</emu-xref> has an associated <dfn>Composite Registry</dfn>: a List of Objects, initially empty. The objects it contains are exactly the composite objects of that agent (<emu-xref href="#sec-composite-objects"></emu-xref>). Objects are added to it only by FindOrCreateComposite (<emu-xref href="#sec-findorcreatecomposite"></emu-xref>) and are shared across all realms within the agent.</p>
+    <p>Each <emu-xref href="#sec-code-realms">realm</emu-xref> has an associated <dfn>Composite Registry</dfn>: a List of Objects, initially empty. The objects it contains are only composite objects created by that realm (<emu-xref href="#sec-composite-objects"></emu-xref>). Objects are added to it only by FindOrCreateComposite (<emu-xref href="#sec-findorcreatecomposite"></emu-xref>).</p>
     <emu-note>
       <p>Membership in the registry does not keep a composite object alive; an implementation may remove one once it is no longer <emu-xref href="#sec-liveness">live</emu-xref>. This removal is unobservable, since composite objects cannot be held weakly (see <emu-xref href="#sec-canbeheldweakly"></emu-xref>) and so cannot be placed in a <emu-xref href="#sec-weakmap-constructor">WeakMap</emu-xref>, <emu-xref href="#sec-weak-ref-constructor">WeakRef</emu-xref>, <emu-xref href="#sec-weakset-constructor">WeakSet</emu-xref>, or <emu-xref href="#sec-finalization-registry-constructor">FinalizationRegistry</emu-xref>.</p>
     </emu-note>
     <emu-note>
-      <p>The Composite Registry is per-<emu-xref href="#sec-agents">agent</emu-xref>, not per-<emu-xref href="#sec-code-realms">realm</emu-xref>. As a result, composites are equal across realms within the same agent (for example, across same-origin iframes), similar to symbols obtained from <emu-xref href="#sec-symbol.for">`Symbol.for`</emu-xref>. A composite object created via one realm's `Composite` function has a [[Prototype]] of *null* and so bears no relationship to the realm that created it; only the key/value pairs matter.</p>
+      <p>The Composite Registry is per-<emu-xref href="#sec-code-realms">realm</emu-xref>, not per-<emu-xref href="#sec-agents">agent</emu-xref>: two realms of the same agent (for example, two same-origin iframes) never produce the same composite object, unlike symbols obtained from <emu-xref href="#sec-symbol.for">`Symbol.for`</emu-xref>. A composite object has a [[Prototype]] of *null* and so bears no relationship to the realm that created it; passing one to another realm's `Composite` function gives that realm's equivalent (<emu-xref href="#sec-composite-function-arg"></emu-xref>).</p>
     </emu-note>
   </emu-clause>
 </emu-clause>

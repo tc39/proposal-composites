@@ -269,12 +269,36 @@ await test("preserveNegativeZero - supplying option can be a noop", () => {
     assert(c1 === c2, "should be same object");
 });
 
-await test("preserveNegativeZero - option does not impact an existing composite", () => {
+await test("preserveNegativeZero - an existing composite preserves `-0` by default", () => {
     const cNegZero = Composite({ v: -0 }, { preserveNegativeZero: true });
-    const copy1 = Composite(cNegZero, { preserveNegativeZero: true });
-    const copy2 = Composite(cNegZero, { preserveNegativeZero: false });
-    const copy3 = Composite(cNegZero);
-    assert(cNegZero === copy1, "`{ preserveNegativeZero: true }` still returns copy");
-    assert(cNegZero === copy2, "`{ preserveNegativeZero: false }` still returns copy");
-    assert(cNegZero === copy3, "`no options still returns copy");
+    const same1 = Composite(cNegZero, { preserveNegativeZero: true });
+    const same2 = Composite(cNegZero);
+    const same3 = Composite(cNegZero, {});
+    assert(cNegZero === same1, "`{ preserveNegativeZero: true }` returns the same object");
+    assert(cNegZero === same2, "no options returns the same object");
+    assert(cNegZero === same3, "an empty options bag returns the same object");
+});
+
+await test("options - a non-object options throws", () => {
+    for (const options of [null, 0, "", "preserveNegativeZero", true, Symbol()]) {
+        assert.throws(
+            () => {
+                // @ts-expect-error
+                Composite({ v: -0 }, options);
+            },
+            TypeError,
+            `${String(options)} should throw`,
+        );
+    }
+    const callable = () => {};
+    callable.preserveNegativeZero = true;
+    assert(Object.is((Composite({ v: -0 }, callable) as any).v, -0), "a callable is an object");
+});
+
+await test("preserveNegativeZero - `false` normalizes an existing composite", () => {
+    const cNegZero = Composite({ v: -0 }, { preserveNegativeZero: true });
+    const normalized = Composite(cNegZero, { preserveNegativeZero: false });
+    assert(cNegZero !== normalized, "should not be the same object");
+    assert(Object.is((normalized as any).v, 0), "negative zero normalized");
+    assert(normalized === Composite({ v: 0 }), "interns with the normalized composite");
 });
